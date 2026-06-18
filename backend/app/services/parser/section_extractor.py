@@ -9,6 +9,7 @@ section_headers = {
         "areas of expertise",
         "expertise",
         "tools",
+        "skills & activities"
     ],
 
     "education": [
@@ -40,6 +41,7 @@ section_headers = {
         "technical projects",
         "key projects",
         "project experience",
+        "selected projects"
     ],
     
 }

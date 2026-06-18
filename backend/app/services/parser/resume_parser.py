@@ -18,9 +18,9 @@ def parse_resume(file_path):
         all_header_positions
     )
 
-    education = section_contents["education"]
-    skills = section_contents["skills"]
-    projects = section_contents["projects"]
+    education = section_contents.get("education", "")
+    skills = section_contents.get("skills", "")
+    projects = section_contents.get("projects", "")
 
     parsed_education = education_parser(education)
     parsed_skills = skill_parser(skills)
@@ -33,9 +33,3 @@ def parse_resume(file_path):
     }
     
     return parsed_resume
-
-# file_path = Path("backend/app/services/parser/santosh_resume.docx")
-
-# result = parse_resume(str(file_path))
-
-# print(result)
