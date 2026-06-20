@@ -6,6 +6,7 @@ from .parsers import (
     education_parser,
     skill_parser,
     project_parser,
+    experience_parser,
 )
 def parse_resume(file_path):
     resume_txt = extract_text(file_path)
@@ -21,15 +22,18 @@ def parse_resume(file_path):
     education = section_contents.get("education", "")
     skills = section_contents.get("skills", "")
     projects = section_contents.get("projects", "")
+    experience = section_contents.get("experience", "")
 
     parsed_education = education_parser(education)
     parsed_skills = skill_parser(skills)
     parsed_projects = project_parser(projects)
+    parsed_experience = experience_parser(experience)
 
     parsed_resume = {
         "education": parsed_education,
         "skills": parsed_skills,
         "projects": parsed_projects,
+        "experience": parsed_experience
     }
     
     return parsed_resume

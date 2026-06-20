@@ -213,3 +213,124 @@ def project_parser(projects):
 
     return parsed_projects
 
+# Experience Parser
+
+position_keywords = {
+    "engineering",
+    "engineer",
+    "developer",
+    "intern",
+    "analyst",
+    "assistant",
+    "manager",
+    "consultant",
+    "researcher",
+    "specialist",
+    "administrator",
+}
+
+def line_normalizer(line):
+    if not line:
+        return False
+    cleaned_line = line.lower().strip()
+    words = cleaned_line.split()
+    return words
+    
+def is_position(line):
+    words = line_normalizer(line)
+    for word in words:
+        if word in position_keywords:
+            return True
+    
+# print(is_position("Software engineering intern"))
+months = {
+    "january", "february", "march", "april",
+    "may", "june", "july", "august",
+    "september", "october", "november", "december",
+    "jan", "feb", "mar", "apr",
+    "jun", "jul", "aug", "sep",
+    "sept", "oct", "nov", "dec"
+}
+def is_date(line): #v1 date identifier
+    words = line_normalizer(line)
+    has_year = False
+    has_month = False
+
+    for word in words:
+        if word.isdigit() and len(word) == 4:
+            has_year = True
+        if word in months:
+            has_month = True
+
+    return has_year and has_month
+    
+bullet_markers = {
+    "•",  # standard bullet
+    "-",  # hyphen
+    "*",  # asterisk
+    "○",  # hollow circle
+    "●",  # filled circle
+    "▪",  # small square
+    "■",  # square
+    "◦",  # small hollow bullet
+    "‣",  # triangular bullet
+    "–",  # en dash
+    "—",  # em dash
+}           
+def is_description(line):
+    if is_date(line):
+        return False
+    if is_position(line):
+        return False
+
+    words = line_normalizer(line)
+
+    has_action_verb = False
+    has_bullet = False
+
+    for word in words:
+        if word in action_verbs:
+            has_action_verb = True
+
+        if word in bullet_markers or any(char in bullet_markers for char in word):
+            has_bullet = True
+
+        if has_action_verb and has_bullet:
+            break
+
+    return has_action_verb or has_bullet
+
+def is_company(line):
+    if not line.strip():
+        return False
+    if is_date(line):
+        return False
+    if is_position(line):
+        return False
+    if is_description(line):
+        return False
+    else:
+        return True
+
+
+def split_experience_entries(experience):
+    return
+
+
+def get_company_name():
+    
+    return
+
+def get_work_position():
+    return
+
+def get_date():
+    return
+
+def get_description():
+    return
+
+def experience_parser(experiences):
+    
+    return
+        
