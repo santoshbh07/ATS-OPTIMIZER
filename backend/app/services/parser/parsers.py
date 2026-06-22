@@ -314,8 +314,42 @@ def is_company(line):
 
 
 def split_experience_entries(experience):
-    return
+    current_entry = []
+    entries = []
+    
+    has_date = False
+    has_position = False
+    has_company = False
+    
+    
+    for line in experience:
+        # Boundary: new position detected and we already have one in progress
+        if is_position(line) and has_position:
+            entries.append(current_entry)
+            current_entry = []
+            has_position = False
+            has_company = False
+            has_date = False
 
+        # Classify and collect AFTER boundary check
+        if is_date(line):
+            has_date = True
+            current_entry.append(line)
+        elif is_position(line):
+            has_position = True
+            current_entry.append(line)
+        elif is_company(line):
+            has_company = True
+            current_entry.append(line)
+        elif is_description(line):
+            current_entry.append(line)
+
+    # Save the final entry
+    if current_entry:
+        entries.append(current_entry)
+
+    return entries  
+        
 
 def get_company_name():
     
