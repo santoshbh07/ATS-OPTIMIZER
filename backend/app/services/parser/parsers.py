@@ -300,6 +300,14 @@ def is_description(line):
 
     return has_action_verb or has_bullet
 
+
+company_keywords = {
+    "inc", "llc", "corp", "ltd", "limited", "technologies", "technology",
+    "solutions", "systems", "services", "group", "consulting", "software",
+    "labs", "studio", "studios", "ventures", "holdings", "enterprises",
+    "foundation", "institute", "associates",
+}
+
 def is_company(line):
     if not line.strip():
         return False
@@ -312,6 +320,12 @@ def is_company(line):
     else:
         return True
 
+def is_location(line):
+    if line:
+        if line.lower() == "remote":
+            return True
+        else:
+            return bool(re.match(r"[^,]+,\s[A-Za-z\s]+(?:\s\d+)?", line))
 
 def split_experience_entries(experience):
     current_entry = []
@@ -324,7 +338,7 @@ def split_experience_entries(experience):
     
     for line in experience:
         # Boundary: new position detected and we already have one in progress
-        if is_position(line) and has_position:
+        if is_company(line) and has_company and not is_location(line):
             entries.append(current_entry)
             current_entry = []
             has_position = False
@@ -343,28 +357,58 @@ def split_experience_entries(experience):
             current_entry.append(line)
         elif is_description(line):
             current_entry.append(line)
-
+        elif is_location(line):
+            current_entry.append(line)
+        # print(current_entry)
     # Save the final entry
     if current_entry:
         entries.append(current_entry)
-
+    elif is_company(line) and not is_location(line):
+        entries.append(current_entry)
     return entries  
         
 
-def get_company_name():
-    
-    return
+def get_company_name(entry):
+    for i, line in enumerate(entry):
+        if is_position(line) and i > 0:
+            prev_line = entry[i - 1]
+            if not is_date(prev_line) and not is_description(prev_line) and not is_location(prev_line):
+                return prev_line.strip()
+            elif i>1 and is_location(prev_line):
+                if entry[i - 2]:
+                    return entry[i - 2].strip()
+    # fallback: elimination
+    for line in entry:
+        if is_company(line):
+            return line.strip()
+    return ""
 
-def get_work_position():
-    return
+def get_work_position(entry):
+    for line in entry:
+        if is_position(line):
+            return line.strip()
+    return ""
 
-def get_date():
-    return
+def get_date(entry):
+    for line in entry:
+        if is_date(line):
+            return line.strip()
+    return ""
 
-def get_description():
-    return
+def get_description(entry):
+    return [line.strip() for line in entry if is_description(line)]
 
 def experience_parser(experiences):
-    
-    return
-        
+    entries = split_experience_entries(experiences)
+    parsed_experiences = []
+
+    for entry in entries:
+        parsed_entry = {
+            "company": get_company_name(entry),
+            "position": get_work_position(entry),
+            "date": get_date(entry),
+            "description": get_description(entry),
+        }
+        parsed_experiences.append(parsed_entry)
+
+    return parsed_experiences
