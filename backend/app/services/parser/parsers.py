@@ -1,26 +1,26 @@
-import re
+﻿import re
 
 MOJIBAKE_REPLACEMENTS = {
-    "â€¢": "•",
-    "â—‹": "○",
-    "â—": "●",
-    "â–ª": "▪",
-    "â– ": "■",
-    "â—¦": "◦",
-    "â€£": "‣",
-    "â€“": "–",
-    "â€”": "—",
+    "Ã¢â‚¬Â¢": "â€¢",
+    "Ã¢â€”â€¹": "â—‹",
+    "Ã¢â€”Â": "â—",
+    "Ã¢â€“Âª": "â–ª",
+    "Ã¢â€“Â ": "â– ",
+    "Ã¢â€”Â¦": "â—¦",
+    "Ã¢â‚¬Â£": "â€£",
+    "Ã¢â‚¬â€œ": "â€“",
+    "Ã¢â‚¬â€": "â€”",
+    "Ã¢â‚¬â„¢": "'",
+    "Ã¢â‚¬Ëœ": "'",
+    "Ã¢â‚¬Å“": '"',
+    "Ã¢â‚¬Â": '"',
     "â€™": "'",
     "â€˜": "'",
     "â€œ": '"',
     "â€": '"',
-    "’": "'",
-    "‘": "'",
-    "“": '"',
-    "”": '"',
 }
 
-BULLET_PATTERN = r"^[\s•\-*○●▪■◦‣]+"
+BULLET_PATTERN = r"^[\sâ€¢\-*â—‹â—â–ªâ– â—¦â€£]+"
 
 MOJIBAKE_REPLACEMENTS.update({
     "\u00c3\u00a2\u00e2\u201a\u00ac\u00c2\u00a2": "\u2022",
@@ -63,7 +63,7 @@ def normalize_text(text):
     normalized = str(text)
     try:
         repaired = normalized.encode("cp1252").decode("utf-8")
-        if "�" not in repaired:
+        if "ï¿½" not in repaired:
             normalized = repaired
     except UnicodeError:
         pass
@@ -247,7 +247,7 @@ position_keywords = {
     "coordinator", "lead", "leader", "chair", "officer", "teacher", "server",
 }
 
-bullet_markers = {"•", "*", "○", "●", "▪", "■", "◦", "‣"}
+bullet_markers = {"â€¢", "*", "â—‹", "â—", "â–ª", "â– ", "â—¦", "â€£"}
 
 non_company_labels = [
     "experience", "activities", "skills", "summary", "objective", "profile",
@@ -299,7 +299,7 @@ def line_normalizer(line):
 
 month_pattern = r"(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t|tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)"
 season_pattern = r"(spring|summer|summers|fall|autumn|winter)"
-date_separator = r"\s*[-–—]\s*"
+date_separator = rf"\s*[-{chr(0x2013)}{chr(0x2014)}]\s*"
 month_name_date = rf"{month_pattern}\.?\s*\d{{2,4}}{date_separator}(present|current|{month_pattern}\.?\s*\d{{2,4}})"
 season_date = rf"{season_pattern}\.?\s*\d{{2,4}}{date_separator}(present|current|{season_pattern}\.?\s*\d{{2,4}}|\d{{2,4}})"
 numeric_date = rf"\d{{1,2}}/(?:xx|XX|\d{{2,4}}){date_separator}(present|current|\d{{1,2}}/(?:xx|XX|\d{{2,4}}))"
@@ -313,7 +313,7 @@ date_fragment_pattern = re.compile(
 
 def extract_date(line):
     """Finds a date-range fragment anywhere in the line.
-    Returns (date_text, remainder) — remainder is the line with the date removed."""
+    Returns (date_text, remainder) â€” remainder is the line with the date removed."""
     line = normalize_text(line)
     match = date_fragment_pattern.search(line)
     if not match:
@@ -475,7 +475,7 @@ def is_company(line):
         return len(line.split()) <= 10
     if len(line.split()) > 5:
         return False
-    if re.search(r'\.\s+\w', line):  # dot followed by space and word → sentence
+    if re.search(r'\.\s+\w', line):  # dot followed by space and word â†’ sentence
         return False
     return True
 
@@ -499,13 +499,13 @@ def is_location(line):
     last = parts[-1]
     if any(word in last.lower() for word in ("department", "university", "college", "school", "services", "group")):
         return False
-    # Last segment should look like a state/country — short, letters only
+    # Last segment should look like a state/country â€” short, letters only
     if not re.match(r'^[A-Za-z\s]+(?:\s\d+)?$', last):
         return False
     if len(last.split()) > 3:
         return False
 
-    # Every earlier segment (company/city) should be short too — not a full sentence
+    # Every earlier segment (company/city) should be short too â€” not a full sentence
     for part in parts[:-1]:
         if len(part.split()) > 6:
             return False
@@ -518,7 +518,7 @@ def is_location(line):
 
 def is_new_entry_signal(line):
     """True if this line looks like it starts something new
-    (date, bullet, position, or location) — i.e. NOT a wrapped continuation."""
+    (date, bullet, position, or location) â€” i.e. NOT a wrapped continuation."""
     date_text, _ = extract_date(line)
     if date_text:
         return True
@@ -536,7 +536,7 @@ def ends_with_terminal_punctuation(line):
 
 def split_location_and_position(line):
     line = normalize_text(line)
-    match = re.match(r"^(.+?,\s*[A-Za-z]{2})(?:\s+|\s+-\s+|\s+–\s+|\s+—\s+)(.+)$", line)
+    match = re.match(r"^(.+?,\s*[A-Za-z]{2})(?:\s+|\s+-\s+|\s+â€“\s+|\s+â€”\s+)(.+)$", line)
     if not match:
         return None
 
@@ -620,7 +620,7 @@ def split_experience_entries(experience):
 
         line = remainder
 
-        split_company_position = None if has_company else split_company_and_position(line)
+        split_company_position = None if has_company or not date_text else split_company_and_position(line)
         if split_company_position:
             company, position = split_company_position
             if current_entry and (has_company or has_position):
@@ -735,3 +735,5 @@ def experience_parser(experiences):
         parsed_experiences.append(parsed_entry)
 
     return parsed_experiences
+
+
