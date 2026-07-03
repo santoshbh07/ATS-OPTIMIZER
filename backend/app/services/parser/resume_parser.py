@@ -7,7 +7,21 @@ from .parsers import (
     skill_parser,
     project_parser,
     experience_parser,
+    normalize_text,
 )
+
+def normalize_parsed_value(value):
+    if isinstance(value, str):
+        return normalize_text(value)
+    if isinstance(value, list):
+        return [normalize_parsed_value(item) for item in value]
+    if isinstance(value, dict):
+        return {
+            normalize_parsed_value(key): normalize_parsed_value(item)
+            for key, item in value.items()
+        }
+    return value
+
 def parse_resume(file_path):
     resume_txt = extract_text(file_path)
 
@@ -36,4 +50,4 @@ def parse_resume(file_path):
         "experience": parsed_experience
     }
     
-    return parsed_resume
+    return normalize_parsed_value(parsed_resume)

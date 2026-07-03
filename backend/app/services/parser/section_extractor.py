@@ -1,3 +1,5 @@
+import re
+
 section_headers = {
     "skills": [
         "skills",
@@ -9,17 +11,23 @@ section_headers = {
         "areas of expertise",
         "expertise",
         "tools",
-        "skills & activities"
+        "skills & activities",
+        "strengths",
+        "skills / strengths"
     ],
 
     "education": [
-        "education",
-        "academic background",
-        "academic qualifications",
-        "educational background",
-        "qualifications",
-        "academic history",
-    ],
+    "education",
+    "academic background",
+    "academic qualifications",
+    "educational background",
+    "qualifications",
+    "academic history",
+    "certification",
+    "certifications",
+    "trainings and certifications",
+    "training and certifications",
+],
 
     "experience": [
         "experience",
@@ -42,6 +50,10 @@ section_headers = {
         "research experience",
         "teaching experience",
         "volunteer experience",
+        "career related experience",
+        "extracurricular experience",
+        "additional work experience",
+        "additional experience"
     ],
 
     "projects": [
@@ -57,25 +69,42 @@ section_headers = {
     
 }
 
+section_headers["interests"] = ["interests", "hobbies"]
+section_headers["activities"] = [
+    "activities",
+    "campus involvement",
+    "campus activities",
+    "extracurricular activities",
+    "leadership",
+    "leadership experience",
+    "involvement",
+    "organizations",
+    "memberships",
+]
+
 def reverse_section_headers(headers):
     reversed_headers = {}
     for header in headers:
         header_list = headers[header]
-        # print(header_list)
         for item in header_list:
             reversed_headers[item] = header
     
     return reversed_headers
         
 reversed_section_headers = reverse_section_headers(section_headers)
-print(reversed_section_headers)
+
+def normalize_header(line):
+    if not line:
+        return ""
+
+    normalized = line.lower().strip()
+    normalized = re.sub(r"^[\s\-*•▪■◦‣]+", "", normalized)
+    normalized = normalized.rstrip(":|•-–— ")
+    normalized = re.sub(r"\s+", " ", normalized)
+    return normalized
 
 def is_header(line):
-    if not line:
-        return False
-    x = reversed_section_headers.keys()
-    if line in x:
-        return True
+    return normalize_header(line) in reversed_section_headers
 
 def find_header_loc(resume_text):
     text = resume_text
@@ -83,122 +112,35 @@ def find_header_loc(resume_text):
 
     # Build a single cleaned list (strip + skip empty) used everywhere
     cleaned_lines = [line.strip() for line in lines if line.strip()]
-    cleaned_lower = [line.lower() for line in cleaned_lines]
 
+    cleaned_headers = [normalize_header(line) for line in cleaned_lines]
+    
     headers_loc = {}
     all_header_positions = []
 
-    for index, line in enumerate(cleaned_lower):
+    for index, line in enumerate(cleaned_headers):
         if line in reversed_section_headers:
             section_name = reversed_section_headers[line]
-            headers_loc[section_name] = index
-            all_header_positions.append(index)
-
-    for index, line in enumerate(cleaned_lines):
-        if is_header(line) and index not in all_header_positions:
+            headers_loc.setdefault(section_name, []).append(index)
             all_header_positions.append(index)
 
     all_header_positions.sort()  # ensuring order is correct
-    for index in all_header_positions:
-        print(index, cleaned_lines[index])
     return headers_loc, all_header_positions
 
 def extract_sections(resume_text, header_loc, all_header_positions):
     text = resume_text.strip()
     lines = text.splitlines()
-
-    # Use the same cleaning logic as find_header_loc
     cleaned_lines = [line.strip() for line in lines if line.strip()]
 
     extracted_sections = {}
-    for section_name, start_index in header_loc.items():
-        next_boundary = next(
-            (pos for pos in all_header_positions if pos > start_index),
-            len(cleaned_lines)
-        )
-        # +1 to skip the header line itself
-        extracted_sections[section_name] = cleaned_lines[start_index + 1 : next_boundary]
+    for section_name, start_indices in header_loc.items():
+        combined = []
+        for start_index in start_indices:
+            next_boundary = next(
+                (pos for pos in all_header_positions if pos > start_index),
+                len(cleaned_lines)
+            )
+            combined.extend(cleaned_lines[start_index + 1 : next_boundary])
+        extracted_sections[section_name] = combined
 
     return extracted_sections
-
-
-txt = """
-JOHN DOE
-john.doe@email.com | (555) 123-4567 | LinkedIn: linkedin.com/in/johndoe
-
-EDUCATION
-
-University of North Texas — Denton, TX
-Bachelor of Science in Computer Science
-Expected Graduation: May 2028
-GPA: 3.8/4.0
-
-SKILLS
-
-• Python
-• Java
-• C++
-• FastAPI
-• SQL
-• Git
-• Docker
-• PostgreSQL
-• Data Analysis
-• Microsoft Excel
-• Problem Solving
-• Team Collaboration
-
-EXPERIENCE
-
-Software Engineer Intern
-TechCorp Solutions
-May 2025 - Aug 2025
-
-• Developed REST APIs using FastAPI and PostgreSQL
-• Implemented authentication and authorization features
-• Improved API response times by 35%
-• Collaborated with a team of 5 engineers
-
-Data Analyst Intern
-Insight Analytics
-Jan 2025 - Apr 2025
-
-• Analyzed customer datasets using Python and SQL
-• Created dashboards to visualize business metrics
-• Automated weekly reporting processes
-• Presented findings to management
-
-IT Support Assistant
-University of North Texas
-Sep 2024 - Dec 2024
-
-• Resolved hardware and software issues for students
-• Maintained computer lab equipment
-• Assisted with network troubleshooting
-• Documented support procedures
-
-PROJECTS
-
-ATS Resume Optimizer
-
-• Built a resume parser using FastAPI
-• Extracted education, skills, projects, and experience sections
-• Implemented keyword matching against job descriptions
-
-Expense Tracker App
-
-• Developed a full-stack expense tracking application
-• Added user authentication and reporting features
-• Integrated PostgreSQL database
-
-LEADERSHIP
-
-Computer Science Club
-
-• Organized technical workshops
-• Mentored first-year students
-"""
-x, y= find_header_loc(txt)
-print(x, y)
-z = extract_sections(txt,x,y)
-print(z)

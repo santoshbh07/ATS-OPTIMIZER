@@ -3,13 +3,15 @@ from docx import Document
 import os
 
 def pdf_text_extractor(file_path: str) -> str:
-    pages = []
-
+    text = []
     with pdfplumber.open(file_path) as pdf:
         for page in pdf.pages:
-            pages.append(page.extract_text() or "")
-
-    return "\n".join(pages)
+            # x_tolerance: horizontal gap to treat as a space
+            # y_tolerance: vertical gap to treat as a newline
+            page_text = page.extract_text(x_tolerance=2, y_tolerance=3)
+            if page_text:
+                text.append(page_text)
+    return "\n".join(text)
 
 def docx_text_extractor(file_path: str) -> str:
     document = Document(file_path)
