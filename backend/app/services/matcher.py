@@ -140,7 +140,7 @@ def alias_pattern(alias):
     """Build a boundary-aware regex so short aliases like C or JS do not overmatch inside words."""
     escaped = re.escape(alias.lower())
     if re.fullmatch(r"[a-z0-9#.+]+", alias.lower()):
-        return rf"(?<![a-z0-9+#.]){escaped}(?![a-z0-9+#.])"
+        return rf"(?<![a-z0-9+#.]){escaped}(?![a-z0-9+#])"
     return rf"\b{escaped}\b"
 
 
