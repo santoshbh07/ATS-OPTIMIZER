@@ -1,12 +1,35 @@
+# Python virtual environments
 venv/
-backend/venv/
+.venv/
 
+# Python generated files
 __pycache__/
-*.pyc
+*.py[cod]
+
+# Python testing and coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Environment variables and secrets
 .env
+.env.*
+!.env.example
 
+# Editor settings
 .vscode/
+.idea/
 
+# Logs
 *.log
 
+# Local resume samples and uploaded documents
 sample_resume/
+uploads/
+
+# Temporary files
+*.tmp
+
+# Operating-system files
+.DS_Store
+Thumbs.db
