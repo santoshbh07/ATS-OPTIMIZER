@@ -27,7 +27,6 @@ ATS OPTIMIZER/
 ├── tests/
 ├── AGENTS.md
 ├── API_CONTRACT.md
-├── FRONTEND_INSTRUCTIONS.md
 ├── FRONTEND_PLAN.md
 └── README.md
 ```
