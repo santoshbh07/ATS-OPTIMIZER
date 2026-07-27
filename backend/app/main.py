@@ -1,60 +1,100 @@
-﻿from fastapi import FastAPI, UploadFile, File, Form
-from app.services.parser.resume_parser import parse_resume
-from app.services.matcher import match_resume_to_job
-from app.services.scorer import score_match
-import os
-import tempfile
+﻿from pathlib import Path
+from tempfile import NamedTemporaryFile
+import logging
+import shutil
 
-app = FastAPI()
+from fastapi import FastAPI, File, HTTPException, UploadFile
+
+from app.services.resume_parser import parse_resume_file
 
 
-def save_upload_to_temp(file: UploadFile, content: bytes) -> str:
-    suffix = file.filename[file.filename.rfind("."):] if "." in file.filename else ""
+logger = logging.getLogger(__name__)
 
-    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as temp_file:
-        temp_file.write(content)
-        return temp_file.name
+app = FastAPI(
+    title="ATS Optimizer API",
+    version="0.1.0",
+)
+
+SUPPORTED_FILE_EXTENSIONS = {
+    ".pdf",
+    ".docx",
+}
 
 
 @app.get("/")
-def root():
-    return {"message": "Welcome to my ATS Project!"}
+def health_check() -> dict[str, str]:
+    return {
+        "status": "ok",
+        "message": "ATS Optimizer API is running",
+    }
 
 
 @app.post("/parse-resume")
-async def parse_resume_endpoint(
-    file: UploadFile = File(...)
-):
-    content = await file.read()
-    temp_path = save_upload_to_temp(file, content)
-
-    try:
-        return parse_resume(temp_path)
-    finally:
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
-
-
-@app.post("/match-resume")
-async def match_resume_endpoint(
+def parse_resume_endpoint(
     file: UploadFile = File(...),
-    job_description: str = Form(...)
-):
-    content = await file.read()
-    temp_path = save_upload_to_temp(file, content)
+) -> dict:
+    temporary_path: Path | None = None
 
     try:
-        parsed_resume = parse_resume(temp_path)
-        match_result = match_resume_to_job(parsed_resume, job_description)
-        score_result = score_match(match_result)
+        temporary_path = _save_uploaded_file(file)
+        return parse_resume_file(temporary_path)
 
-        # Returning each layer separately keeps parser, matcher, and scorer easy to test.
-        return {
-            "parsed_resume": parsed_resume,
-            "match_result": match_result,
-            "score_result": score_result,
-        }
+    except HTTPException:
+        raise
+
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=str(exc),
+        ) from exc
+
+    except Exception as exc:
+        logger.exception("Unexpected error while parsing resume")
+
+        raise HTTPException(
+            status_code=500,
+            detail="An unexpected error occurred while parsing the resume.",
+        ) from exc
+
     finally:
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
+        file.file.close()
 
+        if temporary_path is not None:
+            temporary_path.unlink(missing_ok=True)
+
+
+def _save_uploaded_file(file: UploadFile) -> Path:
+    filename = file.filename or ""
+    file_extension = Path(filename).suffix.lower()
+
+    if file_extension not in SUPPORTED_FILE_EXTENSIONS:
+        supported = ", ".join(
+            sorted(SUPPORTED_FILE_EXTENSIONS)
+        )
+
+        raise HTTPException(
+            status_code=415,
+            detail=(
+                f"Unsupported file type: "
+                f"{file_extension or 'unknown'}. "
+                f"Supported types: {supported}."
+            ),
+        )
+
+    try:
+        with NamedTemporaryFile(
+            delete=False,
+            suffix=file_extension,
+        ) as temporary_file:
+            shutil.copyfileobj(
+                file.file,
+                temporary_file,
+            )
+
+            return Path(temporary_file.name)
+
+    except OSError as exc:
+        raise HTTPException(
+            status_code=500,
+            detail="The uploaded file could not be saved.",
+        ) from exc

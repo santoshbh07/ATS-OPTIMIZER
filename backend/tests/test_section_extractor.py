@@ -1,48 +1,76 @@
-import unittest
-
-from app.services.parser.section_extractor import extract_sections, find_header_loc, is_header
-
-
-class SectionExtractorTests(unittest.TestCase):
-    def test_is_header_accepts_known_headers_with_punctuation(self):
-        self.assertTrue(is_header("Technical Skills:"))
-        self.assertTrue(is_header("Work Experience"))
-        self.assertFalse(is_header("Built APIs with Python"))
-
-    def test_find_header_loc_maps_resume_headers_to_sections(self):
-        resume_text = "\n".join(
-            [
-                "Jane Candidate",
-                "Technical Skills",
-                "Python",
-                "Education",
-                "Bachelor of Science",
-            ]
-        )
-
-        header_loc, positions = find_header_loc(resume_text)
-
-        self.assertEqual(header_loc, {"skills": [1], "education": [3]})
-        self.assertEqual(positions, [1, 3])
-
-    def test_extract_sections_returns_content_between_headers(self):
-        resume_text = "\n".join(
-            [
-                "Jane Candidate",
-                "Skills",
-                "Python",
-                "SQL",
-                "Projects",
-                "ATS Optimizer",
-            ]
-        )
-        header_loc, positions = find_header_loc(resume_text)
-
-        result = extract_sections(resume_text, header_loc, positions)
-
-        self.assertEqual(result["skills"], ["Python", "SQL"])
-        self.assertEqual(result["projects"], ["ATS Optimizer"])
+from app.services.section_extractor import (
+    extract_sections,
+    find_header_loc,
+)
 
 
-if __name__ == "__main__":
-    unittest.main()
+def test_extract_sections_detects_multiple_sections():
+    resume_text = """
+    EDUCATION
+    University of North Texas
+    Bachelor of Science in Computer Science
+
+    SKILLS
+    Python, FastAPI, PostgreSQL
+    """
+
+    result = extract_sections(resume_text)
+
+    assert result == {
+        "education": [
+            "University of North Texas",
+            "Bachelor of Science in Computer Science",
+        ],
+        "skills": [
+            "Python, FastAPI, PostgreSQL",
+        ],
+    }
+
+
+def test_extract_sections_returns_empty_dictionary_without_headers():
+    resume_text = """
+    Santosh
+    Computer Science Student
+    Python and FastAPI Developer
+    """
+
+    assert extract_sections(resume_text) == {}
+
+
+def test_extract_sections_handles_repeated_section_headers():
+    resume_text = """
+    EXPERIENCE
+    Software Intern
+    ABC Company
+
+    EXPERIENCE
+    Teaching Assistant
+    XYZ School
+    """
+
+    result = extract_sections(resume_text)
+
+    assert result["experience"] == [
+        "Software Intern",
+        "ABC Company",
+        "Teaching Assistant",
+        "XYZ School",
+    ]
+
+
+def test_find_header_loc_returns_header_positions():
+    resume_text = """
+    EDUCATION
+    University of North Texas
+
+    SKILLS
+    Python
+    """
+
+    headers, positions = find_header_loc(resume_text)
+
+    assert headers == {
+        "education": [0],
+        "skills": [2],
+    }
+    assert positions == [0, 2]

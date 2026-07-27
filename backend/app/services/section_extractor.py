@@ -24,10 +24,28 @@ section_headers = {
     "qualifications",
     "academic history",
     "certification",
-    "certifications",
-    "trainings and certifications",
-    "training and certifications",
-],
+    # Mixed headings
+    "education and certifications",
+    "education & certifications",
+    "education / certifications",
+    "education and training",
+    "education, training and certifications",
+    "degrees and certifications",
+    "degrees & certifications",
+    ], 
+    
+    "certifications": [
+        "certification",
+        "certifications",
+        "professional certifications",
+        "technical certifications",
+        "licenses and certifications",
+        "certifications and licenses",
+        "credentials",
+        "professional credentials",
+        "training and certifications",
+        "trainings and certifications",
+    ],
 
     "experience": [
         "experience",
@@ -106,41 +124,64 @@ def normalize_header(line):
 def is_header(line):
     return normalize_header(line) in reversed_section_headers
 
-def find_header_loc(resume_text):
-    text = resume_text
-    lines = text.splitlines()
+def _clean_resume_lines(resume_text: str) -> list[str]:
+    return [
+        line.strip()
+        for line in resume_text.splitlines()
+        if line.strip()
+    ]
 
-    # Build a single cleaned list (strip + skip empty) used everywhere
-    cleaned_lines = [line.strip() for line in lines if line.strip()]
 
-    cleaned_headers = [normalize_header(line) for line in cleaned_lines]
-    
-    headers_loc = {}
-    all_header_positions = []
+def find_header_loc(
+    resume_text: str,
+) -> tuple[dict[str, list[int]], list[int]]:
+    cleaned_lines = _clean_resume_lines(resume_text)
 
-    for index, line in enumerate(cleaned_headers):
-        if line in reversed_section_headers:
-            section_name = reversed_section_headers[line]
-            headers_loc.setdefault(section_name, []).append(index)
-            all_header_positions.append(index)
+    headers_loc: dict[str, list[int]] = {}
+    all_header_positions: list[int] = []
 
-    all_header_positions.sort()  # ensuring order is correct
+    for index, line in enumerate(cleaned_lines):
+        normalized_line = normalize_header(line)
+
+        if normalized_line not in reversed_section_headers:
+            continue
+
+        section_name = reversed_section_headers[normalized_line]
+
+        headers_loc.setdefault(section_name, []).append(index)
+        all_header_positions.append(index)
+
     return headers_loc, all_header_positions
 
-def extract_sections(resume_text, header_loc, all_header_positions):
-    text = resume_text.strip()
-    lines = text.splitlines()
-    cleaned_lines = [line.strip() for line in lines if line.strip()]
 
-    extracted_sections = {}
+def extract_sections(
+    resume_text: str,
+) -> dict[str, list[str]]:
+    cleaned_lines = _clean_resume_lines(resume_text)
+
+    header_loc, all_header_positions = find_header_loc(
+        resume_text
+    )
+
+    extracted_sections: dict[str, list[str]] = {}
+
     for section_name, start_indices in header_loc.items():
-        combined = []
+        combined_lines: list[str] = []
+
         for start_index in start_indices:
             next_boundary = next(
-                (pos for pos in all_header_positions if pos > start_index),
-                len(cleaned_lines)
+                (
+                    position
+                    for position in all_header_positions
+                    if position > start_index
+                ),
+                len(cleaned_lines),
             )
-            combined.extend(cleaned_lines[start_index + 1 : next_boundary])
-        extracted_sections[section_name] = combined
+
+            combined_lines.extend(
+                cleaned_lines[start_index + 1 : next_boundary]
+            )
+
+        extracted_sections[section_name] = combined_lines
 
     return extracted_sections
