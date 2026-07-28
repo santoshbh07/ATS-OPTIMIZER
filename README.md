@@ -25,51 +25,8 @@ ATS OPTIMIZER/
 │   └── venv/
 ├── sample_resume/
 ├── tests/
-├── AGENTS.md
-├── API_CONTRACT.md
-├── FRONTEND_PLAN.md
 └── README.md
 ```
-
-## API Endpoints
-
-```text
-GET  /
-POST /parse-resume
-POST /match-resume
-```
-
-`POST /match-resume` accepts:
-
-```text
-file
-job_description
-```
-
-and returns:
-
-```json
-{
-  "parsed_resume": {},
-  "match_result": {},
-  "score_result": {}
-}
-```
-
-## Run the Backend
-
-```powershell
-cd backend
-.\venv\Scripts\Activate.ps1
-uvicorn app.main:app --reload
-```
-
-Open:
-
-```text
-http://127.0.0.1:8000/docs
-```
-
 ## Planned Frontend
 
 The frontend will use:
