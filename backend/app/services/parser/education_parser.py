@@ -1,4 +1,4 @@
-from .date_parser import DateCandidate, detect_date_candidates, NormalizedDate
+from .date_parser import DateCandidate, detect_date_candidates, NormalizedDate, remove_date_candidates
 from .text_utils import normalize_text, strip_bullet
 from dataclasses import dataclass, field
 import re
@@ -17,6 +17,15 @@ def _degree_patterns(*patterns: str) -> tuple[re.Pattern[str], ...]:
 
 _TOKEN_START = r"(?<![A-Za-z0-9])"
 _TOKEN_END = r"(?![A-Za-z0-9])"
+
+_ENGINEERING_WORD = r"[A-Za-z][A-Za-z/&'-]*"
+
+_ENGINEERING_FIELD = (
+    rf"(?P<engineering_field>"
+    rf"{_ENGINEERING_WORD}"
+    rf"(?:\s+(?:{_ENGINEERING_WORD}|&)){{0,5}}?"
+    rf")"
+)
 
 DEGREE_DEFINITIONS = (
     DegreeDefinition(
@@ -44,13 +53,16 @@ DEGREE_DEFINITIONS = (
     "Bachelor of Engineering",
     "bachelor",
     _degree_patterns(
-        r"\bBachelor\s+of\s+Engineering\b",
+        r"\b(?P<degree_name>Bachelor\s+of\s+Engineering)\b",
         (
-            r"\bBachelor\s+of\s+"
-            r"(?:[A-Za-z]+\s+and\s+)?"
-            r"[A-Za-z]+\s+Engineering\b"
+            rf"\b(?P<degree_name>"
+            rf"Bachelor\s+of\s+"
+            rf"{_ENGINEERING_FIELD}\s+Engineering"
+            rf")\b"
         ),
-        rf"{_TOKEN_START}(?:B\.\s*E\.?|B\s+E\.?|(?-i:BE)){_TOKEN_END}",
+        rf"{_TOKEN_START}"
+        rf"(?:B\.\s*E\.?|B\s+E\.?|(?-i:BE))"
+        rf"{_TOKEN_END}",
     ),
     ),
     DegreeDefinition(
@@ -64,9 +76,18 @@ DEGREE_DEFINITIONS = (
     "Master of Engineering",
     "master",
     _degree_patterns(
-        r"\bMaster\s+of\s+Engineering\b",
-        r"\bMaster\s+of\s+[A-Za-z]+\s+Engineering\b",
-        rf"{_TOKEN_START}(?:M\.\s*E\.?|M\s+E\.?|(?-i:ME)|M\.?\s*Eng\.?){_TOKEN_END}",
+        r"\b(?P<degree_name>Master\s+of\s+Engineering)\b",
+        (
+            r"\b(?P<degree_name>"
+            r"Master\s+of\s+"
+            r"[A-Za-z][A-Za-z/&'-]*"
+            r"(?:\s+(?:[A-Za-z][A-Za-z/&'-]*|&)){0,5}"
+            r"\s+Engineering"
+            r")\b"
+        ),
+        rf"{_TOKEN_START}"
+        rf"(?:M\.\s*E\.?|M\s+E\.?|(?-i:ME)|M\.?\s*Eng\.?)"
+        rf"{_TOKEN_END}",
     ),
     ),
     DegreeDefinition(
@@ -199,6 +220,15 @@ STUDY_FIELD_ALIASES: dict[str, str] = {
     "construction management": "Construction Management",
 }
 
+_SPECIALIZATION_MARKERS = (
+    r"speciali[sz]ation",
+    r"speciali[sz]ed\s+in",
+    r"concentration",
+    r"focus",
+    r"emphasis",
+    r"track",
+)
+
 SHORT_STUDY_FIELD_ALIASES: dict[str, str] = {
     "cs": "Computer Science",
     "it": "Information Technology",
@@ -253,6 +283,34 @@ _MINOR_METADATA_PATTERN = re.compile(
     r"(?:gpa|honors?|dean's\s+list|coursework|relevant\s+coursework|"
     r"expected|graduated|graduation|certificate|certification)\b",
     re.IGNORECASE,
+    )
+
+_SPECIALIZATION_MARKER_PATTERN = (
+    r"(?:"
+    + "|".join(_SPECIALIZATION_MARKERS)
+    + r")"
+)
+
+_SPECIALIZATION_RE = re.compile(
+    rf"""
+    \b
+    {_SPECIALIZATION_MARKER_PATTERN}
+    \b
+    \s*
+    (?:
+        in
+        \s+
+        |
+        :
+        \s*
+        |
+        -
+        \s*
+    )?
+    (?P<specialization>.+?)
+    \s*$
+    """,
+    re.IGNORECASE | re.VERBOSE,
 )
 
 
@@ -266,6 +324,7 @@ class DegreeRecord:
     degree_name: str | None = None
     degree_level: str | None = None
     fields_of_study: list[str] = field(default_factory=list)
+    specializations: list[str] = field(default_factory=list)
     
     start_date: NormalizedDate | None = None
     end_date: NormalizedDate | None = None
@@ -517,11 +576,24 @@ def _find_degree_match(
 
 def detect_degree(entry: str | list[str]) -> tuple[str, str] | None:
     lines = [entry] if isinstance(entry, str) else entry
+
     for line in lines:
         degree_match = _find_degree_match(line)
-        if degree_match is not None:
-            definition, _, _ = degree_match
-            return definition.canonical_name, definition.level
+
+        if degree_match is None:
+            continue
+
+        definition, match, _ = degree_match
+
+        matched_degree_name = match.groupdict().get("degree_name")
+
+        degree_name = (
+            matched_degree_name.strip()
+            if matched_degree_name
+            else definition.canonical_name
+        )
+
+        return degree_name, definition.level
 
     return None
 
@@ -627,6 +699,70 @@ def normalize_academic_field(candidate: str) -> str | None:
         return STUDY_FIELD_ALIASES[normalized]
     return SHORT_STUDY_FIELD_ALIASES.get(normalized)
 
+_ENGINEERING_FIELD_FROM_DEGREE_RE = re.compile(
+    r"\b"
+    r"(?:Bachelor|Master)\s+of\s+"
+    r"(?P<field>"
+        r"[A-Za-z][A-Za-z/&'-]*"
+        r"(?:\s+(?:[A-Za-z][A-Za-z/&'-]*|&)){0,5}"
+        r"\s+Engineering"
+    r")"
+    r"\b",
+    re.IGNORECASE,
+)
+
+
+def detect_field_from_degree_name(
+    degree_name: str | None,
+) -> list[str]:
+    """Extract a field embedded inside an engineering degree title."""
+    if not degree_name:
+        return []
+
+    match = _ENGINEERING_FIELD_FROM_DEGREE_RE.search(degree_name)
+
+    if match is None:
+        return []
+
+    field_name = match.group("field").strip()
+
+    return [field_name] if field_name else []
+
+def detect_specializations(
+    entry: str | list[str],
+) -> list[str]:
+    lines = [entry] if isinstance(entry, str) else entry
+
+    specializations: list[str] = []
+    seen: set[str] = set()
+
+    for line in lines:
+        cleaned_line = remove_date_candidates(line)
+
+        if not cleaned_line:
+            continue
+
+        match = _SPECIALIZATION_RE.search(cleaned_line)
+
+        if match is None:
+            continue
+
+        specialization = match.group("specialization").strip(
+            " \t,;:|-–—"
+        )
+
+        if not specialization:
+            continue
+
+        normalized = specialization.casefold()
+
+        if normalized in seen:
+            continue
+
+        seen.add(normalized)
+        specializations.append(specialization)
+
+    return specializations
 
 def detect_gpa(line: str) -> str | None:
     normalized_line = normalize_text(line).strip()
@@ -752,36 +888,92 @@ def detect_study_fields(line: str) -> list[str]:
 
     return detected_fields
 
+
 def parse_degree_entry(entry_lines: list[str]) -> DegreeRecord:
     record = DegreeRecord(raw_lines=entry_lines.copy())
+    
+    date_candidates: list[DateCandidate] = []
 
-    record.institution = detect_institution(entry_lines)
+    for line in entry_lines:
+        date_candidates.extend(detect_date_candidates(line))
+        
+
+    if date_candidates:
+        candidate = date_candidates[0]
+        
+    start = candidate.start_date
+    end = candidate.end_date
+
+    if candidate.is_current:
+        record.start_date = start
+        record.end_date = None
+    elif end is None:
+        record.start_date = None
+        record.end_date = start
+    else:
+        record.start_date = start
+        record.end_date = end
+               
+    record.is_expected = candidate.is_expected
+    record.is_current = candidate.is_current
+
+    cleaned_institution = remove_date_candidates(detect_institution(entry_lines))
+    record.institution = cleaned_institution
+    
 
     degree = detect_degree(entry_lines)
     if degree is not None:
         record.degree_name, record.degree_level = degree
 
+    record.specializations = detect_specializations(entry_lines)
+
+    field_detection_lines: list[str] = []
+
+    for line in entry_lines:
+        cleaned_line = remove_date_candidates(line)
+
+        cleaned_line = _SPECIALIZATION_RE.sub(
+            "",
+            cleaned_line,
+        ).strip(" \t,;:|-–—")
+
+        if cleaned_line:
+            field_detection_lines.append(cleaned_line)
+
     explicit_lines = [
         line
-        for line in entry_lines
+        for line in field_detection_lines
         if _EXPLICIT_FIELD_PATTERN.search(normalize_text(line))
     ]
 
     non_explicit_lines = [
         line
-        for line in entry_lines
+        for line in field_detection_lines
         if not _EXPLICIT_FIELD_PATTERN.search(normalize_text(line))
     ]
 
     seen_fields: set[str] = set()
 
+    # First extract fields embedded in the detected degree title.
+    for field_name in detect_field_from_degree_name(
+        record.degree_name
+    ):
+        key = field_name.casefold()
+
+        if key not in seen_fields:
+            seen_fields.add(key)
+            record.fields_of_study.append(field_name)
+
+    # Then process explicit and general study-field lines.
     for line in [*explicit_lines, *non_explicit_lines]:
         for field_name in detect_study_fields(line):
             key = field_name.casefold()
 
-            if key not in seen_fields:
-                seen_fields.add(key)
-                record.fields_of_study.append(field_name)
+            if key in seen_fields:
+                continue
+
+            seen_fields.add(key)
+            record.fields_of_study.append(field_name)
 
     seen_minors: set[str] = set()
 
@@ -792,9 +984,11 @@ def parse_degree_entry(entry_lines: list[str]) -> DegreeRecord:
         for minor in detect_minors(line):
             key = minor.casefold()
 
-            if key not in seen_minors:
-                seen_minors.add(key)
-                record.minors.append(minor)
+            if key in seen_minors:
+                continue
+
+            seen_minors.add(key)
+            record.minors.append(minor)
 
     return record
 

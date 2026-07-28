@@ -32,7 +32,7 @@ def health_check() -> dict[str, str]:
 @app.post("/parse-resume")
 def parse_resume_endpoint(
     file: UploadFile = File(...),
-) -> dict:
+) -> dict[str, list[dict[str, object]]]:
     temporary_path: Path | None = None
 
     try:

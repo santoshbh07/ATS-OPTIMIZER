@@ -479,3 +479,33 @@ def detect_date_candidates(
                 valid_candidates.append(candidate)
 
     return select_longest_non_overlapping(valid_candidates)
+
+_WHITESPACE_RE = re.compile(r"\s+")
+
+
+def remove_date_candidates(
+    line: str,
+    config: DetectorConfig | None = None,
+) -> str:
+    """Remove recognized date expressions from a line."""
+    if not line:
+        return ""
+
+    candidates = detect_date_candidates(line, config)
+
+    if not candidates:
+        return line.strip()
+
+    cleaned_line = line
+
+    # Remove from right to left so match indexes stay valid.
+    for candidate in reversed(candidates):
+        cleaned_line = (
+            cleaned_line[:candidate.start_index]
+            + " "
+            + cleaned_line[candidate.end_index:]
+        )
+
+    cleaned_line = _WHITESPACE_RE.sub(" ", cleaned_line)
+
+    return cleaned_line.strip(" \t,;:|-–—")
