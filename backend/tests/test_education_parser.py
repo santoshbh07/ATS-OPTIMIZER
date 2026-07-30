@@ -681,3 +681,17 @@ def test_groups_named_engineering_degrees_even_when_not_canonicalized():
             "Seoul National University, Seoul, South Korea",
         ],
     ]
+    
+def test_parse_degree_entry_without_date_keeps_date_fields_empty():
+    entry_lines = [
+        "University of North Texas",
+        "Bachelor of Science in Computer Science",
+        "GPA: 3.66",
+    ]
+
+    record = parse_degree_entry(entry_lines)
+
+    assert record.start_date is None
+    assert record.end_date is None
+    assert record.is_expected is False
+    assert record.is_current is False

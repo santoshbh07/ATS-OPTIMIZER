@@ -27,6 +27,15 @@ _ENGINEERING_FIELD = (
     rf")"
 )
 
+_SPECIALIZATION_MARKERS = (
+    r"speciali[sz]ation",
+    r"speciali[sz]ed\s+in",
+    r"concentration",
+    r"focus",
+    r"emphasis",
+    r"track",
+)
+
 DEGREE_DEFINITIONS = (
     DegreeDefinition(
         "Bachelor of Business Administration", "bachelor",
@@ -219,15 +228,6 @@ STUDY_FIELD_ALIASES: dict[str, str] = {
     "environmental engineering": "Environmental Engineering",
     "construction management": "Construction Management",
 }
-
-_SPECIALIZATION_MARKERS = (
-    r"speciali[sz]ation",
-    r"speciali[sz]ed\s+in",
-    r"concentration",
-    r"focus",
-    r"emphasis",
-    r"track",
-)
 
 SHORT_STUDY_FIELD_ALIASES: dict[str, str] = {
     "cs": "Computer Science",
@@ -895,27 +895,30 @@ def parse_degree_entry(entry_lines: list[str]) -> DegreeRecord:
     date_candidates: list[DateCandidate] = []
 
     for line in entry_lines:
-        date_candidates.extend(detect_date_candidates(line))
+        detected_candidates = detect_date_candidates(line)
+
+        if detected_candidates:
+            date_candidates.extend(detected_candidates)
         
 
     if date_candidates:
         candidate = date_candidates[0]
         
-    start = candidate.start_date
-    end = candidate.end_date
+        start = candidate.start_date
+        end = candidate.end_date
 
-    if candidate.is_current:
-        record.start_date = start
-        record.end_date = None
-    elif end is None:
-        record.start_date = None
-        record.end_date = start
-    else:
-        record.start_date = start
-        record.end_date = end
+        if candidate.is_current:
+            record.start_date = start
+            record.end_date = None
+        elif end is None:
+            record.start_date = None
+            record.end_date = start
+        else:
+            record.start_date = start
+            record.end_date = end
                
-    record.is_expected = candidate.is_expected
-    record.is_current = candidate.is_current
+        record.is_expected = candidate.is_expected
+        record.is_current = candidate.is_current
 
     cleaned_institution = remove_date_candidates(detect_institution(entry_lines))
     record.institution = cleaned_institution
