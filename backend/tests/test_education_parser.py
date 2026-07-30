@@ -10,6 +10,8 @@ from app.services.parser.education_parser import (
     split_institution_and_location,
     parse_education
 )
+
+from app.services.parser.date_parser import NormalizedDate
 import pytest
 
 
@@ -409,10 +411,18 @@ def test_parse_degree_entry_populates_field_without_changing_other_fields():
     assert record.degree_name == "Bachelor of Science"
     assert record.degree_level == "bachelor"
     assert record.fields_of_study == ["Computer Science"]
+
     assert record.start_date is None
-    assert record.end_date is None
+    
+    assert record.end_date is not None
+    assert record.end_date.year == 2027
+    assert record.end_date.month == 5
+    
     assert record.gpa is None
     assert record.raw_lines == lines
+    
+    assert record.is_expected is True
+    assert record.is_current is False
 
 
 @pytest.mark.parametrize(
@@ -423,13 +433,20 @@ def test_parse_degree_entry_populates_field_without_changing_other_fields():
         ("Overall GPA - 3.72", "3.72"),
         ("Cumulative GPA: 3.850", "3.850"),
         ("GPA: 3.85/4.00", "3.85"),
-        ("GPA: 8.6 / 10", "8.6"),
+        ("GPA: 4.5/5.0", "4.5"),
+        ("GPA: 5.0/5.00", "5.0"),
+        ("GPA: 0.0/4.0", "0.0"),
+        ("GPA: 8.6 / 10", None),
         ("", None),
         ("Graduated in 2024", None),
         ("3.85 years of experience", None),
         ("GPA: N/A", None),
         ("Major GPA: 3.90", None),
         ("GPA: 4.5/4.0", None),
+        ("GPA: 4.1", None),
+        ("GPA: 5.1/5.0", None),
+        ("GPA: 3.8/10", None),
+        ("GPA: -1.0", None),
     ],
 )
 def test_detect_gpa_supported_and_invalid_formats(line, expected):
@@ -695,3 +712,313 @@ def test_parse_degree_entry_without_date_keeps_date_fields_empty():
     assert record.end_date is None
     assert record.is_expected is False
     assert record.is_current is False
+
+def test_parse_degree_entry_without_institution_keeps_institution_none():
+    entry_lines = [
+        "Bachelor of Science in Computer Science",
+        "Expected Graduation: May 2026",
+        "GPA: 3.66",
+    ]
+
+    record = parse_degree_entry(entry_lines)
+
+    assert record.institution is None
+    
+def test_parse_degree_entry_without_institution_parses_remaining_fields():
+    entry_lines = [
+        "Bachelor of Science in Computer Science",
+        "Expected Graduation: May 2026",
+        "GPA: 3.66",
+    ]
+
+    record = parse_degree_entry(entry_lines)
+
+    assert record.institution is None
+
+    assert record.degree_name == "Bachelor of Science"
+    assert record.degree_level == "bachelor"
+    assert record.fields_of_study == ["Computer Science"]
+
+    assert record.end_date is not None
+    assert record.end_date.year == 2026
+    assert record.end_date.month == 5
+    assert record.is_expected is True
+
+    assert record.gpa == "3.66"
+    
+@pytest.mark.parametrize(
+    ("line", "expected"),
+    [
+        # Unknown fields in strong academic contexts
+        (
+            "Bachelor of Science in Geology",
+            ["Geology"],
+        ),
+        (
+            "Major: Marine Biology",
+            ["Marine Biology"],
+        ),
+        (
+            "Field of Study: Urban Planning",
+            ["Urban Planning"],
+        ),
+        (
+            "Program in Game Design",
+            ["Game Design"],
+        ),
+        (
+            "Concentration: Computational Biology",
+            ["Computational Biology"],
+        ),
+        (
+            "Bachelor of Arts in Peace and Conflict Studies",
+            ["Peace and Conflict Studies"],
+        ),
+
+        # Known aliases and abbreviations
+        (
+            "B.S., Computer Science",
+            ["Computer Science"],
+        ),
+        (
+            "Major: CS",
+            ["Computer Science"],
+        ),
+        (
+            "Field of Study: Business Admin",
+            ["Business Administration"],
+        ),
+
+        # Multiple fields
+        (
+            "Double Major: Computer Science and Mathematics",
+            ["Computer Science", "Mathematics"],
+        ),
+        (
+            "Double Major: Geology and Anthropology",
+            ["Geology", "Anthropology"],
+        ),
+
+        # Embedded engineering fields
+        (
+            "Bachelor of Civil and Environmental Engineering",
+            ["Civil and Environmental Engineering"],
+        ),
+        (
+            "Master of Building Engineering",
+            ["Building Engineering"],
+        ),
+
+        # Metadata trimming
+        (
+            "Bachelor of Science in Geology, GPA: 3.8",
+            ["Geology"],
+        ),
+        (
+            "Bachelor of Science in Geology, Minor in Mathematics",
+            ["Geology"],
+        ),
+
+        # No field
+        (
+            "Bachelor of Science",
+            [],
+        ),
+    ],
+)
+def test_detect_study_fields(line, expected):
+    assert detect_study_fields(line) == expected
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "",
+        "Geology Club Member",
+        "Interested in Geology",
+        "Department of Geology",
+        "Coursework: Geology",
+        "Relevant Coursework: Geology",
+        "School of Environmental Science",
+        "University Department of Anthropology",
+    ],
+)
+def test_study_fields_require_strong_academic_context(line):
+    assert detect_study_fields(line) == []
+
+def test_parse_degree_entry_collects_field_and_specialization():
+    record = parse_degree_entry(
+        [
+            "Example University",
+            "Bachelor of Science in Geology",
+            "Concentration: Computational Biology",
+        ]
+    )
+
+    assert record.degree_name == "Bachelor of Science"
+    assert record.degree_level == "bachelor"
+    assert record.fields_of_study == [
+        "Geology",
+        "Computational Biology",
+    ]
+    assert record.specializations == [
+        "Computational Biology",
+    ]
+    
+def test_expected_marker_modifies_attached_education_range():
+    record = parse_degree_entry(
+        [
+            "University of North Texas",
+            "Bachelor of Science in Computer Science",
+            "Sep 2022 - May 2026 (Expected)",
+        ]
+    )
+
+    assert record.start_date == NormalizedDate(
+        year=2022,
+        month=9,
+    )
+    assert record.end_date == NormalizedDate(
+        year=2026,
+        month=5,
+    )
+    assert record.is_expected is True
+    assert record.is_current is False
+
+
+def test_education_range_wins_over_isolated_graduation_date():
+    record = parse_degree_entry(
+        [
+            "University of North Texas",
+            "Expected May 2026",
+            "Sep 2022 - May 2026",
+        ]
+    )
+
+    assert record.start_date == NormalizedDate(
+        year=2022,
+        month=9,
+    )
+    assert record.end_date == NormalizedDate(
+        year=2026,
+        month=5,
+    )
+    assert record.is_expected is True
+
+
+def test_expected_marker_does_not_modify_unrelated_range():
+    record = parse_degree_entry(
+        [
+            "University of North Texas",
+            "Expected May 2027",
+            "Sep 2022 - May 2026",
+        ]
+    )
+
+    assert record.start_date == NormalizedDate(
+        year=2022,
+        month=9,
+    )
+    assert record.end_date == NormalizedDate(
+        year=2026,
+        month=5,
+    )
+    assert record.is_expected is False
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "Expected May 2026",
+        "Expected Graduation: May 2026",
+        "Anticipated May 2026",
+        "May 2026 (Expected)",
+    ],
+)
+def test_expected_marker_applies_to_isolated_graduation_date(line):
+    record = parse_degree_entry(
+        [
+            "University of North Texas",
+            "Bachelor of Science in Computer Science",
+            line,
+        ]
+    )
+
+    assert record.start_date is None
+    assert record.end_date == NormalizedDate(
+        year=2026,
+        month=5,
+    )
+    assert record.is_expected is True
+
+
+def test_education_prefers_range_even_when_single_date_appears_first():
+    record = parse_degree_entry(
+        [
+            "May 2026",
+            "Sep 2022 - May 2026",
+        ]
+    )
+
+    assert record.start_date == NormalizedDate(
+        year=2022,
+        month=9,
+    )
+    assert record.end_date == NormalizedDate(
+        year=2026,
+        month=5,
+    )
+
+@pytest.mark.parametrize(
+    ("line", "expected"),
+    [
+        # Valid unscaled GPA values: 0.0–4.0
+        ("GPA: 0", "0"),
+        ("GPA: 0.0", "0.0"),
+        ("GPA: 2.75", "2.75"),
+        ("gpa 3.8", "3.8"),
+        ("GPA=3.85", "3.85"),
+        ("Overall GPA - 3.72", "3.72"),
+        ("Cumulative GPA: 3.850", "3.850"),
+        ("Grade Point Average: 4.0", "4.0"),
+
+        # Valid 4-point scale
+        ("GPA: 0.0/4.0", "0.0"),
+        ("GPA: 3.85/4", "3.85"),
+        ("GPA: 3.85 / 4.00", "3.85"),
+        ("GPA: 4.0/4.0", "4.0"),
+
+        # Valid 5-point scale
+        ("GPA: 0.0/5.0", "0.0"),
+        ("GPA: 4.0/5", "4.0"),
+        ("GPA: 4.5/5.0", "4.5"),
+        ("GPA: 5.0/5.00", "5.0"),
+
+        # Score exceeds allowed range
+        ("GPA: 4.01", None),
+        ("GPA: 5.0", None),
+        ("GPA: 4.1/4.0", None),
+        ("GPA: 4.5/4.0", None),
+        ("GPA: 5.1/5.0", None),
+        ("GPA: 8.6/10", None),
+
+        # Unsupported scales
+        ("GPA: 3.8/4.5", None),
+        ("GPA: 3.8/6.0", None),
+        ("GPA: 3.8/10", None),
+
+        # Invalid or missing values
+        ("GPA: -1.0", None),
+        ("GPA: N/A", None),
+        ("GPA:", None),
+        ("GPA: five", None),
+        ("", None),
+
+        # Missing or excluded GPA context
+        ("3.85", None),
+        ("3.85 years of experience", None),
+        ("Graduated in 2024", None),
+        ("Major GPA: 3.90", None),
+    ],
+)
+def test_detect_gpa_ranges_and_scales(line, expected):
+    assert detect_gpa(line) == expected

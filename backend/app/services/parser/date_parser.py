@@ -7,7 +7,6 @@ from typing import Literal
 
 DateKind = Literal[
     "month_year",
-    "expected",
     "month_range",
     "open_range",
     "year_range",
@@ -33,7 +32,6 @@ class DateCandidate:
     start_date: NormalizedDate
     end_date: NormalizedDate | None
     is_current: bool
-    is_expected: bool
     confidence: float
 
     @property
@@ -53,7 +51,6 @@ class PatternDefinition:
     kind: DateKind
     regex: re.Pattern[str]
     confidence: float
-    is_expected: bool = False
 
 
 MONTHS = {
@@ -148,10 +145,10 @@ PATTERNS = (
         confidence=0.86,
         regex=compile_pattern(
             rf"(?P<start_numeric_month>\d{{1,2}})/"
-            rf"(?P<start_year>{YEAR})\s*"
+            rf"(?P<start_year>{FOUR_DIGIT_YEAR})\s*"
             rf"{SEPARATOR}\s*"
             rf"(?P<end_numeric_month>\d{{1,2}})/"
-            rf"(?P<end_year>{YEAR})"
+            rf"(?P<end_year>{FOUR_DIGIT_YEAR})"
         ),
     ),
     PatternDefinition(
@@ -180,7 +177,7 @@ PATTERNS = (
         confidence=0.86,
         regex=compile_pattern(
             rf"(?P<start_numeric_month>\d{{1,2}})/"
-            rf"(?P<start_year>{YEAR})\s*"
+            rf"(?P<start_year>{FOUR_DIGIT_YEAR})\s*"
             rf"{SEPARATOR}\s*"
             rf"(?P<current>{CURRENT_VALUE})"
         ),
@@ -214,26 +211,6 @@ PATTERNS = (
         ),
     ),
     PatternDefinition(
-        kind="expected",
-        confidence=0.99,
-        is_expected=True,
-        regex=compile_pattern(
-            rf"(?:expected(?:\s+graduation)?|anticipated)\s*:?\s*"
-            rf"(?P<start_month>{MONTH_NAME})\.?\s*"
-            rf"(?P<start_year>{YEAR})"
-        ),
-    ),
-    PatternDefinition(
-        kind="expected",
-        confidence=0.99,
-        is_expected=True,
-        regex=compile_pattern(
-            rf"(?P<start_month>{MONTH_NAME})\.?\s*"
-            rf"(?P<start_year>{YEAR})\s*"
-            rf"\(\s*expected\s*\)"
-        ),
-    ),
-    PatternDefinition(
         kind="season",
         confidence=0.89,
         regex=compile_pattern(
@@ -254,7 +231,7 @@ PATTERNS = (
         confidence=0.80,
         regex=compile_pattern(
             rf"(?P<start_numeric_month>\d{{1,2}})/"
-            rf"(?P<start_year>{YEAR})"
+            rf"(?P<start_year>{FOUR_DIGIT_YEAR})"
         ),
     ),
     PatternDefinition(
@@ -265,7 +242,6 @@ PATTERNS = (
         ),
     ),
 )
-
 
 def normalize_year(value: str, pivot_year: int) -> int:
     """Expand a two-digit year relative to the configured pivot."""
@@ -362,7 +338,6 @@ def normalize_match(
             start_date=start_date,
             end_date=end_date,
             is_current=is_current,
-            is_expected=definition.is_expected,
             confidence=definition.confidence,
         )
 
