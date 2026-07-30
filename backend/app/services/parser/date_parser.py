@@ -109,7 +109,7 @@ MONTH_NAME = (
 SEASON_NAME = r"(?:spring|summer|fall|autumn|winter)"
 YEAR = r"(?:\d{2}|\d{4})"
 FOUR_DIGIT_YEAR = r"\d{4}"
-SEPARATOR = r"(?:-|–|—|\bto\b)"
+SEPARATOR = r"(?:-|\u2013|\u2014|\bto\b)"
 CURRENT_VALUE = r"(?:present|current|now|ongoing)"
 
 FLAGS = re.IGNORECASE
