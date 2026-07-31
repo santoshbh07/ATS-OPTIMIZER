@@ -1,7 +1,13 @@
-from .date_parser import DateCandidate, detect_date_candidates, NormalizedDate, remove_date_candidates
-from .text_utils import normalize_text, strip_bullet
-from dataclasses import dataclass, field
 import re
+from dataclasses import dataclass, field
+
+from .date_parser import (
+    DateCandidate,
+    NormalizedDate,
+    detect_date_candidates,
+    remove_date_candidates,
+)
+from .text_utils import normalize_text, strip_bullet
 
 _EXPECTED_MARKER_RE = re.compile(
     r"\b(?:expected(?:\s+graduation)?|anticipated)\b",
@@ -12,16 +18,17 @@ _EXPECTED_MARKER_RE = re.compile(
 @dataclass
 class DegreeRecord:
     institution: str | None = None
+    location: str | None = None
     degree_name: str | None = None
     degree_level: str | None = None
     fields_of_study: list[str] = field(default_factory=list)
     specializations: list[str] = field(default_factory=list)
-    
+
     start_date: NormalizedDate | None = None
     end_date: NormalizedDate | None = None
     is_expected: bool = False
     is_current: bool = False
-    
+
     gpa: str | None = None
     honors: list[str] = field(default_factory=list)
     minors: list[str] = field(default_factory=list)
@@ -29,11 +36,13 @@ class DegreeRecord:
 
     raw_lines: list[str] = field(default_factory=list)
 
+
 @dataclass(frozen=True)
 class DegreeDefinition:
     canonical_name: str
     level: str
     patterns: tuple[re.Pattern[str], ...]
+
 
 _TOKEN_START = r"(?<![A-Za-z0-9])"
 _TOKEN_END = r"(?![A-Za-z0-9])"
@@ -59,6 +68,8 @@ _SPECIALIZATION_MARKERS = (
 
 def _degree_patterns(*patterns: str) -> tuple[re.Pattern[str], ...]:
     return tuple(re.compile(pattern, re.IGNORECASE) for pattern in patterns)
+
+
 DEGREE_DEFINITIONS = (
     DegreeDefinition(
         "Bachelor of Business Administration", "bachelor",
@@ -82,20 +93,20 @@ DEGREE_DEFINITIONS = (
         ),
     ),
     DegreeDefinition(
-    "Bachelor of Engineering",
-    "bachelor",
-    _degree_patterns(
-        r"\b(?P<degree_name>Bachelor\s+of\s+Engineering)\b",
-        (
-            rf"\b(?P<degree_name>"
-            rf"Bachelor\s+of\s+"
-            rf"{_ENGINEERING_FIELD}\s+Engineering"
-            rf")\b"
+        "Bachelor of Engineering",
+        "bachelor",
+        _degree_patterns(
+            r"\b(?P<degree_name>Bachelor\s+of\s+Engineering)\b",
+            (
+                rf"\b(?P<degree_name>"
+                rf"Bachelor\s+of\s+"
+                rf"{_ENGINEERING_FIELD}\s+Engineering"
+                rf")\b"
+            ),
+            rf"{_TOKEN_START}"
+            rf"(?:B\.\s*E\.?|B\s+E\.?|(?-i:BE))"
+            rf"{_TOKEN_END}",
         ),
-        rf"{_TOKEN_START}"
-        rf"(?:B\.\s*E\.?|B\s+E\.?|(?-i:BE))"
-        rf"{_TOKEN_END}",
-    ),
     ),
     DegreeDefinition(
         "Bachelor of Technology", "bachelor",
@@ -105,20 +116,20 @@ DEGREE_DEFINITIONS = (
         ),
     ),
     DegreeDefinition(
-    "Master of Engineering",
-    "master",
-    _degree_patterns(
-        r"\b(?P<degree_name>Master\s+of\s+Engineering)\b",
-        (
-            rf"\b(?P<degree_name>"
-            rf"Master\s+of\s+"
-            rf"{_ENGINEERING_FIELD}\s+Engineering"
-            rf")\b"
+        "Master of Engineering",
+        "master",
+        _degree_patterns(
+            r"\b(?P<degree_name>Master\s+of\s+Engineering)\b",
+            (
+                rf"\b(?P<degree_name>"
+                rf"Master\s+of\s+"
+                rf"{_ENGINEERING_FIELD}\s+Engineering"
+                rf")\b"
+            ),
+            rf"{_TOKEN_START}"
+            rf"(?:M\.\s*E\.?|M\s+E\.?|(?-i:ME)|M\.?\s*Eng\.?)"
+            rf"{_TOKEN_END}",
         ),
-        rf"{_TOKEN_START}"
-        rf"(?:M\.\s*E\.?|M\s+E\.?|(?-i:ME)|M\.?\s*Eng\.?)"
-        rf"{_TOKEN_END}",
-    ),
     ),
     DegreeDefinition(
         "Doctor of Philosophy", "doctorate",
@@ -206,7 +217,7 @@ DEGREE_DEFINITIONS = (
     ),
 )
 
-# ==============Study Field helpers start here=================
+# Study field detection
 STUDY_FIELD_ALIASES: dict[str, str] = {
     "civil and environmental engineering": "Civil and Environmental Engineering",
     "management information systems": "Management Information Systems",
@@ -269,11 +280,7 @@ _FIELD_LABEL_RE = re.compile(
         majors? |
         field\s+of\s+study |
         area\s+of\s+study |
-        programs? |
-        concentrations? |
-        speciali[sz]ations? |
-        emphasis |
-        focus
+        programs?
     )
     \s*(?::|\bin\b)\s*
     (?P<field>.+?)
@@ -333,13 +340,12 @@ _FIELD_VALUE_RE = re.compile(
     r"[A-Za-z][A-Za-z0-9&/'’+.-]*"
     r"(?:\s+[A-Za-z0-9][A-Za-z0-9&/'’+.-]*){0,11}"
 )
-# ==============Study feild helpers end here=============
 
 GPA_PATTERN = re.compile(
     r"\b(?:gpa|grade\s+point\s+average)\b"
     r"(?:\s*[:=]\s*|\s+-\s+|\s+)"
     r"(?P<score>\d+(?:\.\d+)?)"
-    r"(?:\s*/\s*(?P<scale>[45](?:\.0+)?))?"
+    r"(?:\s*/\s*(?P<scale>4(?:\.0+|\.3(?:0+)?)?|5(?:\.0+)?))?"
     r"(?!\s*/|[\d.])",
     re.IGNORECASE,
 )
@@ -386,15 +392,6 @@ _SPECIALIZATION_RE = re.compile(
     re.IGNORECASE | re.VERBOSE,
 )
 
-INSTITUTION_KEYWORDS = {
-    "university",
-    "college",
-    "institute",
-    "academy",
-    "polytechnic",
-    "school",
-}
-
 US_STATE_ABBREVIATIONS = {
     "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA",
     "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD",
@@ -424,6 +421,16 @@ COUNTRY_NAMES = {
     "united states", "united states of america",
 }
 
+LOCATION_REGION_SUFFIXES = tuple(sorted(
+    {
+        *(region.casefold() for region in US_STATE_ABBREVIATIONS),
+        *US_STATE_NAMES,
+        *COUNTRY_NAMES,
+    },
+    key=len,
+    reverse=True,
+))
+
 ACADEMIC_UNIT_TERMS = {
     "arts and sciences", "business", "computer science", "education",
     "electrical engineering", "engineering", "graduate studies",
@@ -434,42 +441,51 @@ NON_INSTITUTION_PREFIXES = (
     "department of ", "faculty of ", "division of ",
 )
 
-DEGREE_LINE_PATTERN = re.compile(
-    r"^(?:associate|bachelor|master|doctor|ph\.?d\.?|b\.?[as]\.?|"
-    r"m\.?[as]\.?)\b",
-    re.IGNORECASE,
-)
-
-
-def extract_date_candidates(line: str) -> list[DateCandidate]:
-    return detect_date_candidates(line)
-
-def looks_like_degree_line(line: str) -> bool:
-    cleaned_line = normalize_text(_clean_line(line))
-    return DEGREE_LINE_PATTERN.match(cleaned_line) is not None
 
 def _clean_line(line: str) -> str:
     return strip_bullet(line).strip()
 
 
+def _find_degree_match(
+    line: str,
+) -> tuple[DegreeDefinition, re.Match[str], str] | None:
+    normalized_line = normalize_text(line)
+    for definition in DEGREE_DEFINITIONS:
+        for pattern in definition.patterns:
+            match = pattern.search(normalized_line)
+            if match is not None:
+                return definition, match, normalized_line
+    return None
+
+
+def looks_like_degree_line(line: str) -> bool:
+    # Grouping and extraction intentionally share the same degree definitions.
+    return _find_degree_match(_clean_line(line)) is not None
+
+
 def _looks_like_location(value: str) -> bool:
-    parts = [part.strip() for part in value.split(",")]
-    if len(parts) < 2 or any(not part for part in parts):
-        return False
+    location = value.strip().rstrip(".")
+    location = re.sub(r"\s+\d{5}(?:-\d{4})?$", "", location)
+    normalized_location = location.casefold()
 
-    city = parts[0]
-    region = parts[-1]
-    normalized_region = region.casefold()
-    if not re.fullmatch(r"[A-Za-z][A-Za-z .'-]*", city):
-        return False
-    if any(term in city.casefold() for term in ACADEMIC_UNIT_TERMS):
-        return False
+    # Validate from the right so "City, ST" and "City ST" share one rule.
+    for region in LOCATION_REGION_SUFFIXES:
+        if not normalized_location.endswith(region):
+            continue
 
-    return (
-        region.upper() in US_STATE_ABBREVIATIONS
-        or normalized_region in US_STATE_NAMES
-        or normalized_region in COUNTRY_NAMES
-    )
+        city_end = len(location) - len(region)
+        if city_end <= 0 or location[city_end - 1] not in " ,":
+            continue
+
+        city = location[:city_end].rstrip(" ,")
+        if not re.fullmatch(r"[A-Za-z][A-Za-z .'-]*", city):
+            continue
+        if any(term in city.casefold() for term in ACADEMIC_UNIT_TERMS):
+            continue
+
+        return True
+
+    return False
 
 
 def split_institution_and_location(line: str) -> tuple[str, str | None]:
@@ -477,6 +493,16 @@ def split_institution_and_location(line: str) -> tuple[str, str | None]:
     cleaned_line = _clean_line(line)
     if not cleaned_line:
         return "", None
+
+    parenthetical_match = re.search(
+        r"\s+\((?P<location>[^()]+)\)$",
+        cleaned_line,
+    )
+    if parenthetical_match is not None:
+        location = parenthetical_match.group("location").strip()
+        if _looks_like_location(location):
+            institution = cleaned_line[:parenthetical_match.start()].strip()
+            return institution, location
 
     for match in re.finditer(r"\s+(?:\||-|–|—)\s+", cleaned_line):
         location = cleaned_line[match.end():].strip()
@@ -501,7 +527,7 @@ def _score_institution_candidate(line: str) -> int:
         return 0
     if normalized.startswith(NON_INSTITUTION_PREFIXES):
         return 0
-    if DEGREE_LINE_PATTERN.match(normalized):
+    if looks_like_degree_line(line):
         return 0
     if re.match(r"^(?:gpa|coursework|relevant coursework|honors?|minor)\b", normalized):
         return 0
@@ -564,10 +590,15 @@ def detect_location(entry: list[str]) -> str | None:
 
     for raw_line in entry:
         cleaned_line = _clean_line(raw_line)
+        if looks_like_degree_line(cleaned_line):
+            continue
+        if _score_institution_candidate(cleaned_line) > 0:
+            continue
         if _looks_like_location(cleaned_line):
             return cleaned_line
 
     return None
+
 
 def group_education_entries(
     education_lines: list[str],
@@ -614,16 +645,6 @@ def group_education_entries(
 
     return grouped_entries
 
-def _find_degree_match(
-    line: str,
-) -> tuple[DegreeDefinition, re.Match[str], str] | None:
-    normalized_line = normalize_text(line)
-    for definition in DEGREE_DEFINITIONS:
-        for pattern in definition.patterns:
-            match = pattern.search(normalized_line)
-            if match is not None:
-                return definition, match, normalized_line
-    return None
 
 
 def detect_degree(entry: str | list[str]) -> tuple[str, str] | None:
@@ -796,6 +817,7 @@ def _split_known_field_list(candidate: str) -> list[str]:
     # "Peace and Conflict Studies"
     return [candidate]
 
+
 def normalize_study_field_candidates(
     candidates: list[str],
 ) -> list[str]:
@@ -818,6 +840,7 @@ def normalize_study_field_candidates(
                 normalized_fields.append(value)
 
     return normalized_fields
+
 
 def normalize_academic_field(candidate: str) -> str | None:
     """Return a canonical field only when the complete candidate is a known alias."""
@@ -862,6 +885,7 @@ def detect_specializations(
         specializations.append(specialization)
 
     return specializations
+
 
 def detect_gpa(line: str) -> str | None:
     normalized_line = normalize_text(line).strip()
@@ -942,8 +966,13 @@ def detect_minors(line: str) -> list[str]:
     suffix_match = _MINOR_SUFFIX_PATTERN.fullmatch(normalized_line)
     if suffix_match is None:
         return []
-    canonical = normalize_academic_field(suffix_match.group("field"))
-    return [canonical] if canonical is not None else []
+
+    candidate = _trim_minor_candidate(suffix_match.group("field"))
+    if not candidate:
+        return []
+
+    return [normalize_academic_field(candidate) or candidate]
+
 
 def detect_study_fields(line: str) -> list[str]:
     """
@@ -954,7 +983,6 @@ def detect_study_fields(line: str) -> list[str]:
         Major: Marine Biology
         Field of Study: Urban Planning
         Program in Game Design
-        Concentration: Computational Biology
 
     Unstructured mentions such as "Interested in Geology" return an empty list.
     """
@@ -1003,24 +1031,7 @@ def select_education_date(
 def parse_degree_entry(entry_lines: list[str]) -> DegreeRecord:
     record = DegreeRecord(raw_lines=entry_lines.copy())
 
-    # Dates
-    candidate, is_expected = select_education_date(entry_lines)
-
-    if candidate is not None:
-        if candidate.is_current:
-            record.start_date = candidate.start_date
-            record.end_date = None
-        elif candidate.end_date is None:
-            record.start_date = None
-            record.end_date = candidate.start_date
-        else:
-            record.start_date = candidate.start_date
-            record.end_date = candidate.end_date
-
-        record.is_expected = is_expected
-        record.is_current = candidate.is_current
-
-    # Institution
+    # Institution and location
     institution = detect_institution(entry_lines)
 
     if institution is not None:
@@ -1031,16 +1042,14 @@ def parse_degree_entry(entry_lines: list[str]) -> DegreeRecord:
         if cleaned_institution:
             record.institution = cleaned_institution
 
-    # Degree
+    record.location = detect_location(entry_lines)
+
+    # Degree and fields of study
     degree = detect_degree(entry_lines)
 
     if degree is not None:
         record.degree_name, record.degree_level = degree
 
-    # Specializations
-    record.specializations = detect_specializations(entry_lines)
-
-    # Fields of study
     seen_fields: set[str] = set()
 
     for line in entry_lines:
@@ -1057,6 +1066,25 @@ def parse_degree_entry(entry_lines: list[str]) -> DegreeRecord:
 
             seen_fields.add(key)
             record.fields_of_study.append(field_name)
+
+    record.specializations = detect_specializations(entry_lines)
+
+    # Dates
+    candidate, is_expected = select_education_date(entry_lines)
+
+    if candidate is not None:
+        if candidate.is_current:
+            record.start_date = candidate.start_date
+            record.end_date = None
+        elif candidate.end_date is None:
+            record.start_date = None
+            record.end_date = candidate.start_date
+        else:
+            record.start_date = candidate.start_date
+            record.end_date = candidate.end_date
+
+        record.is_expected = is_expected
+        record.is_current = candidate.is_current
 
     # GPA and minors
     seen_minors: set[str] = set()
@@ -1075,6 +1103,7 @@ def parse_degree_entry(entry_lines: list[str]) -> DegreeRecord:
             record.minors.append(minor)
 
     return record
+
 
 def parse_education(
     education_lines: list[str],
