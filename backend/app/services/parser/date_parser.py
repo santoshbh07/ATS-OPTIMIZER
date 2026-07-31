@@ -110,6 +110,7 @@ SEPARATOR = r"(?:-|\u2013|\u2014|\bto\b)"
 CURRENT_VALUE = r"(?:present|current|now|ongoing)"
 
 FLAGS = re.IGNORECASE
+_WHITESPACE_RE = re.compile(r"\s+")
 
 
 def compile_pattern(expression: str) -> re.Pattern[str]:
@@ -243,6 +244,7 @@ PATTERNS = (
     ),
 )
 
+
 def normalize_year(value: str, pivot_year: int) -> int:
     """Expand a two-digit year relative to the configured pivot."""
     numeric_year = int(value)
@@ -276,70 +278,71 @@ def normalize_match(
     match: re.Match[str],
     definition: PatternDefinition,
     config: DetectorConfig,
-    ) -> DateCandidate:
-        groups = match.groupdict()
+) -> DateCandidate:
+    groups = match.groupdict()
 
-        start_year_text = groups.get("start_year") or groups.get("shared_year")
+    start_year_text = groups.get("start_year") or groups.get("shared_year")
 
-        if start_year_text is None:
-            raise ValueError("Matched date pattern did not provide a start year")
+    if start_year_text is None:
+        raise ValueError("Matched date pattern did not provide a start year")
 
-        start_year = normalize_year(
-            start_year_text,
-            config.two_digit_year_pivot,
+    start_year = normalize_year(
+        start_year_text,
+        config.two_digit_year_pivot,
+    )
+
+    start_month_text = (
+        groups.get("start_month")
+        or groups.get("start_numeric_month")
+    )
+    start_season_text = groups.get("start_season")
+
+    start_date = NormalizedDate(
+        year=start_year,
+        month=normalize_month(start_month_text) if start_month_text else None,
+        season=normalize_season(start_season_text) if start_season_text else None,
+    )
+
+    is_current = bool(groups.get("current"))
+    end_date = None
+
+    if not is_current:
+        end_year_text = groups.get("end_year") or groups.get("shared_year")
+        end_month_text = (
+            groups.get("end_month")
+            or groups.get("end_numeric_month")
         )
+        end_season_text = groups.get("end_season")
 
-        start_month_text = (
-            groups.get("start_month")
-            or groups.get("start_numeric_month")
-        )
-        start_season_text = groups.get("start_season")
-
-        start_date = NormalizedDate(
-            year=start_year,
-            month=normalize_month(start_month_text) if start_month_text else None,
-            season=normalize_season(start_season_text) if start_season_text else None,
-        )
-
-        is_current = bool(groups.get("current"))
-        end_date = None
-
-        if not is_current:
-            end_year_text = groups.get("end_year") or groups.get("shared_year")
-            end_month_text = (
-                groups.get("end_month")
-                or groups.get("end_numeric_month")
+        if end_year_text:
+            end_date = NormalizedDate(
+                year=normalize_year(
+                    end_year_text,
+                    config.two_digit_year_pivot,
+                ),
+                month=(
+                    normalize_month(end_month_text)
+                    if end_month_text
+                    else None
+                ),
+                season=(
+                    normalize_season(end_season_text)
+                    if end_season_text
+                    else None
+                ),
             )
-            end_season_text = groups.get("end_season")
 
-            if end_year_text:
-                end_date = NormalizedDate(
-                    year=normalize_year(
-                        end_year_text,
-                        config.two_digit_year_pivot,
-                    ),
-                    month=(
-                        normalize_month(end_month_text)
-                        if end_month_text
-                        else None
-                    ),
-                    season=(
-                        normalize_season(end_season_text)
-                        if end_season_text
-                        else None
-                    ),
-                )
+    return DateCandidate(
+        raw_text=match.group(0),
+        start_index=match.start(),
+        end_index=match.end(),
+        kind=definition.kind,
+        start_date=start_date,
+        end_date=end_date,
+        is_current=is_current,
+        confidence=definition.confidence,
+    )
 
-        return DateCandidate(
-            raw_text=match.group(0),
-            start_index=match.start(),
-            end_index=match.end(),
-            kind=definition.kind,
-            start_date=start_date,
-            end_date=end_date,
-            is_current=is_current,
-            confidence=definition.confidence,
-        )
 
 def chronological_key(value: NormalizedDate) -> tuple[int, int]:
     if value.month is not None:
@@ -454,8 +457,6 @@ def detect_date_candidates(
                 valid_candidates.append(candidate)
 
     return select_longest_non_overlapping(valid_candidates)
-
-_WHITESPACE_RE = re.compile(r"\s+")
 
 
 def remove_date_candidates(
