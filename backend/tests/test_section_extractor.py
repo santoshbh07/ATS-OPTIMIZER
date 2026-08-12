@@ -74,3 +74,24 @@ def test_find_header_loc_returns_header_positions():
         "skills": [2],
     }
     assert positions == [0, 2]
+
+
+def test_memberships_affiliations_heading_ends_experience_section():
+    resume_text = """
+    EXPERIENCE
+    Software Engineer
+    Acme Corp
+
+    MEMBERSHIPS/AFFILIATIONS
+    Association for Computing Machinery
+    """
+
+    result = extract_sections(resume_text)
+
+    assert result["experience"] == [
+        "Software Engineer",
+        "Acme Corp",
+    ]
+    assert result["activities"] == [
+        "Association for Computing Machinery",
+    ]

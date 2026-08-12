@@ -329,6 +329,11 @@ _FIELD_METADATA_RE = re.compile(
     re.IGNORECASE | re.VERBOSE,
 )
 
+_INLINE_FIELD_METADATA_RE = re.compile(
+    r"\s+(?:gpa|grade\s+point\s+average)\s*:",
+    re.IGNORECASE,
+)
+
 _INVALID_FIELD_CONTEXT_RE = re.compile(
     r"""
     \b(?:
@@ -428,6 +433,17 @@ US_STATE_NAMES = {
     "west virginia", "wisconsin", "wyoming", "district of columbia",
 }
 
+CANADIAN_PROVINCE_NAMES = {
+    "alberta", "british columbia", "manitoba", "new brunswick",
+    "newfoundland and labrador", "nova scotia", "ontario",
+    "prince edward island", "quebec", "saskatchewan",
+}
+
+CANADIAN_PROVINCE_ABBREVIATIONS = {
+    "AB", "BC", "MB", "NB", "NL", "NS", "NT", "NU", "ON", "PE",
+    "QC", "SK", "YT",
+}
+
 COUNTRY_NAMES = {
     "australia", "canada", "china", "france", "germany", "india",
     "ireland", "italy", "japan", "mexico", "nepal", "new zealand",
@@ -439,6 +455,8 @@ LOCATION_REGION_SUFFIXES = tuple(sorted(
     {
         *(region.casefold() for region in US_STATE_ABBREVIATIONS),
         *US_STATE_NAMES,
+        *(region.casefold() for region in CANADIAN_PROVINCE_ABBREVIATIONS),
+        *CANADIAN_PROVINCE_NAMES,
         *COUNTRY_NAMES,
     },
     key=len,
@@ -696,9 +714,15 @@ def detect_degree(entry: str | list[str]) -> tuple[str, str] | None:
 def _clean_field_candidate(candidate: str) -> str | None:
     candidate = remove_date_candidates(candidate)
 
-    metadata_match = _FIELD_METADATA_RE.search(candidate)
-    if metadata_match is not None:
-        candidate = candidate[:metadata_match.start()]
+    metadata_matches = [
+        match
+        for pattern in (_FIELD_METADATA_RE, _INLINE_FIELD_METADATA_RE)
+        if (match := pattern.search(candidate)) is not None
+    ]
+
+    if metadata_matches:
+        metadata_start = min(match.start() for match in metadata_matches)
+        candidate = candidate[:metadata_start]
 
     candidate = candidate.strip(" \t,;:|/()[]-–—.")
 

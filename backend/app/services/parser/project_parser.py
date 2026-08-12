@@ -360,6 +360,50 @@ def looks_like_project_header(raw_line: str) -> bool:
 
     return looks_like_project_title(content)
 
+
+def is_high_confidence_project_header(raw_line: str) -> bool:
+    """Return whether a header is strong enough to end a wrapped bullet."""
+    line = normalize_text(raw_line).strip()
+
+    if not line or not looks_like_project_header(line):
+        return False
+
+    content = remove_bullet(line) if is_bullet_line(line) else line
+
+    if detect_explicit_project_name(content) is not None:
+        return True
+
+    inline_name, _ = split_inline_project_description(content)
+
+    if inline_name is not None:
+        return True
+
+    if looks_like_inline_project_header(content):
+        return True
+
+    if detect_date_candidates(content):
+        return True
+
+    title = remove_date_candidates(content)
+    words = re.findall(
+        r"[A-Za-z0-9][A-Za-z0-9+.#'-]*",
+        title,
+    )
+
+    if not words:
+        return False
+
+    title_like_words = sum(
+        word.isupper()
+        or word[:1].isupper()
+        or any(character.isupper() for character in word[1:])
+        for word in words
+    )
+
+    # A strict ratio avoids treating PDF-wrapped prose containing names or
+    # technologies as a new project title.
+    return title_like_words * 3 >= len(words) * 2
+
 def project_header_content(raw_line: str) -> str | None:
     """Return normalized content only for a project header."""
     line = normalize_text(raw_line).strip()
@@ -391,14 +435,20 @@ def group_project_entries(project_lines: list[str],) -> list[list[str]]:
             or is_standalone_technology_line(content)
             or _URL_RE.fullmatch(content) is not None
         )
+        header_candidate = looks_like_project_header(line)
+        strong_header = (
+            header_candidate
+            and is_high_confidence_project_header(line)
+        )
         is_wrapped_description = (
             description_wrap_open
             and not is_bullet_line(line)
             and not is_structural_line
+            and not strong_header
         )
         is_header = (
             not is_wrapped_description
-            and looks_like_project_header(line)
+            and header_candidate
         )
 
         starts_new_project = is_header and current_group_has_header

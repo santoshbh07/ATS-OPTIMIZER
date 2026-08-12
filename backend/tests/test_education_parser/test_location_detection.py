@@ -47,6 +47,17 @@ def test_detects_international_location():
     assert detect_location(entry) == "Dhulikhel, Nepal"
 
 
+def test_splits_canadian_city_and_province_location():
+    line = "Concordia University, Montreal, Quebec"
+
+    assert split_institution_and_location(line) == (
+        "Concordia University",
+        "Montreal, Quebec",
+    )
+    assert detect_institution(line) == "Concordia University"
+    assert detect_location([line]) == "Montreal, Quebec"
+
+
 @pytest.mark.parametrize(
     ("line", "expected_institution", "expected_location"),
     [

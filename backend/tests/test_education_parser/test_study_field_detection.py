@@ -63,6 +63,10 @@ from app.services.parser.education_parser import detect_study_fields
             ["Psychology"],
         ),
         (
+            "Bachelor of Science in Computer Science GPA: 3.66",
+            ["Computer Science"],
+        ),
+        (
             "B.S., Data Science, Expected May 2027",
             ["Data Science"],
         ),

@@ -818,3 +818,47 @@ def test_builds_project_records():
     assert records[0].is_current is True
     assert records[0].github_url == "https://github.com/user/ats-optimizer"
     assert records[0].descriptions == ["Built a resume parser."]
+
+
+def test_splits_dated_project_headers_after_unpunctuated_bullets():
+    lines = [
+        "Ground Source Heat Pump, Concordia University Winter 2040",
+        "\u2022 Developed a heat pump plan for an office building",
+        "Energy Audit, Concordia University Fall 2040",
+        "\u2022 Conducted tests to identify areas of heat loss",
+        "Air Quality, Concordia University Winter 2039",
+        "\u2022 Investigated air quality in an indoor swimming pool",
+    ]
+
+    records = parse_projects(lines)
+
+    assert [record.name for record in records] == [
+        "Ground Source Heat Pump, Concordia University",
+        "Energy Audit, Concordia University",
+        "Air Quality, Concordia University",
+    ]
+    assert [record.descriptions for record in records] == [
+        ["Developed a heat pump plan for an office building"],
+        ["Conducted tests to identify areas of heat loss"],
+        ["Investigated air quality in an indoor swimming pool"],
+    ]
+
+
+def test_splits_title_case_project_after_unpunctuated_bullet():
+    lines = [
+        "Social Media Scheduler",
+        "\u2022 Increased overall engagement rate by 25% for users",
+        "Programming an Adventure Game",
+        "\u2022 Created a text-based adventure game in Python",
+    ]
+
+    records = parse_projects(lines)
+
+    assert [record.name for record in records] == [
+        "Social Media Scheduler",
+        "Programming an Adventure Game",
+    ]
+    assert [record.descriptions for record in records] == [
+        ["Increased overall engagement rate by 25% for users"],
+        ["Created a text-based adventure game in Python"],
+    ]

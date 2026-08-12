@@ -90,6 +90,7 @@ section_headers = {
 section_headers["interests"] = ["interests", "hobbies"]
 section_headers["activities"] = [
     "activities",
+    "affiliations",
     "campus involvement",
     "campus activities",
     "extracurricular activities",
@@ -98,6 +99,9 @@ section_headers["activities"] = [
     "involvement",
     "organizations",
     "memberships",
+    "memberships/affiliations",
+    "memberships and affiliations",
+    "memberships & affiliations",
 ]
 
 def reverse_section_headers(headers):

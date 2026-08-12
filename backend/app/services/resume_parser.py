@@ -2,6 +2,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 from .parser.education_parser import parse_education
+from .parser.experience_parser import parse_experience
 from .parser.project_parser import parse_projects
 from .parser.skill_parser import parse_skills
 from .section_extractor import extract_sections
@@ -23,6 +24,9 @@ def parse_resume_file(
     project_records = parse_projects(
         sections.get("projects", [])
     )
+    experience_records = parse_experience(
+        sections.get("experience", [])
+    )
 
     return {
         "education": [
@@ -36,5 +40,9 @@ def parse_resume_file(
         "projects": [
             asdict(record)
             for record in project_records
+        ],
+        "experience": [
+            asdict(record)
+            for record in experience_records
         ],
     }
