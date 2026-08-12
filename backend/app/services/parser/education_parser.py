@@ -9,8 +9,22 @@ from .date_parser import (
 )
 from .text_utils import normalize_text, strip_bullet
 
+EXPECTED_DATE_MARKERS = {
+    "anticipated",
+    "expected",
+    "expected graduation",
+}
+
+_EXPECTED_MARKER_PATTERN = "|".join(
+    re.escape(marker)
+    for marker in sorted(
+        EXPECTED_DATE_MARKERS,
+        key=len,
+        reverse=True,
+    )
+)
 _EXPECTED_MARKER_RE = re.compile(
-    r"\b(?:expected(?:\s+graduation)?|anticipated)\b",
+    rf"\b(?:{_EXPECTED_MARKER_PATTERN})\b",
     re.IGNORECASE,
 )
 
@@ -446,6 +460,14 @@ def _clean_line(line: str) -> str:
     return strip_bullet(line).strip()
 
 
+def remove_date_metadata_from_clean_line(line: str) -> str:
+    cleaned_line = remove_date_candidates(_clean_line(line))
+    cleaned_line = _EXPECTED_MARKER_RE.sub(" ", cleaned_line)
+    cleaned_line = normalize_text(cleaned_line)
+
+    return cleaned_line.strip(" \t,;:|-â€“â€”")
+
+
 def _find_degree_match(
     line: str,
 ) -> tuple[DegreeDefinition, re.Match[str], str] | None:
@@ -490,7 +512,7 @@ def _looks_like_location(value: str) -> bool:
 
 def split_institution_and_location(line: str) -> tuple[str, str | None]:
     """Split a line only when its trailing text confidently resembles a location."""
-    cleaned_line = _clean_line(line)
+    cleaned_line = remove_date_metadata_from_clean_line(line)
     if not cleaned_line:
         return "", None
 

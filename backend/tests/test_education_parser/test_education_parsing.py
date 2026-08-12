@@ -16,6 +16,21 @@ def test_parse_degree_entry_stores_detected_location():
     assert record.location == "Denton, TX"
 
 
+def test_parse_degree_entry_cleans_inline_expected_date_metadata():
+    line = (
+        "University of North Texas (UNT) - Denton, TX\t"
+        "Expected May 2029"
+    )
+
+    record = parse_degree_entry([line])
+
+    assert record.institution == "University of North Texas (UNT)"
+    assert record.location == "Denton, TX"
+    assert record.start_date is None
+    assert record.end_date == NormalizedDate(year=2029, month=5)
+    assert record.is_expected is True
+
+
 def test_parse_degree_entry_populates_field_without_changing_other_fields():
     lines = [
         "University of North Texas",

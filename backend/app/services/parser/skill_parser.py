@@ -203,8 +203,7 @@ def parse_skills(skill_lines: list[str]) -> ParsedSkills:
         detected_category, skill_text = extract_skill_category(line)
         if detected_category is not None:
             current_category = detected_category
-        elif detected_category is None:
-            current_category = None
+
         if not skill_text:
             continue
 
