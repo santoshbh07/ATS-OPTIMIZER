@@ -1,6 +1,6 @@
 import pytest
 
-from app.services.parser.date_parser import (
+from app.services.resume_parsing.date_parser import (
     NormalizedDate,
     detect_date_candidates,
 )

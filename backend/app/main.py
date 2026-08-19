@@ -5,8 +5,7 @@ import shutil
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
 
-from app.services.resume_parser import parse_resume_file
-
+from app.services.resume_parsing.resume_parser import parse_resume_file
 
 logger = logging.getLogger(__name__)
 

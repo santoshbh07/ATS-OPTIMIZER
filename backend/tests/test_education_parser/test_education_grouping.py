@@ -1,4 +1,4 @@
-from app.services.parser.education_parser import group_education_entries
+from app.services.resume_parsing.education_parser import group_education_entries
 
 
 def test_groups_multiple_institution_first_entries():

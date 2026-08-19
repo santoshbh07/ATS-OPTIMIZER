@@ -1,4 +1,4 @@
-from app.services.parser.project_parser import (
+from app.services.resume_parsing.project_parser import (
     group_project_entries,
     detect_project_name,
     detect_project_dates,
@@ -18,9 +18,9 @@ from app.services.parser.project_parser import (
     extract_project_descriptions,
 )
 
-from app.services.parser.text_utils import normalize_text
+from app.services.resume_parsing.text_utils import normalize_text
 
-from app.services.parser.date_parser import(
+from app.services.resume_parsing.date_parser import(
     NormalizedDate
 )
 def test_groups_one_project():

@@ -1,6 +1,6 @@
 import pytest
 
-from app.services.parser.education_parser import detect_minors
+from app.services.resume_parsing.education_parser import detect_minors
 
 
 @pytest.mark.parametrize(

@@ -1,4 +1,4 @@
-from app.services.section_extractor import (
+from app.services.resume_text_extractor.section_extractor import (
     extract_sections,
     find_header_loc,
 )

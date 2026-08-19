@@ -1,6 +1,6 @@
 import pytest
 
-from app.services.parser.education_parser import detect_study_fields
+from app.services.resume_parsing.education_parser import detect_study_fields
 
 
 @pytest.mark.parametrize(

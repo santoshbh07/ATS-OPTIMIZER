@@ -1,5 +1,5 @@
-from app.services.parser.date_parser import NormalizedDate
-from app.services.parser.experience_parser import (
+from app.services.resume_parsing.date_parser import NormalizedDate
+from app.services.resume_parsing.experience_parser import (
     detect_company,
     detect_experience_dates,
     detect_location,

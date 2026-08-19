@@ -1,6 +1,6 @@
 import pytest
 
-from app.services.parser.education_parser import detect_gpa
+from app.services.resume_parsing.education_parser import detect_gpa
 
 
 @pytest.mark.parametrize(

@@ -1,6 +1,6 @@
 import pytest
 
-from app.services.parser.skill_parser import (
+from app.services.resume_parsing.skill_parser import (
     clean_skill_candidate,
     parse_skills,
     split_skill_candidates,

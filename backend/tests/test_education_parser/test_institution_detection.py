@@ -1,4 +1,4 @@
-from app.services.parser.education_parser import detect_institution
+from app.services.resume_parsing.education_parser import detect_institution
 
 
 def test_detects_university_as_institution():

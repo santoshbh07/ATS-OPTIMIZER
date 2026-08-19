@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from app.services import resume_parser
+from app.services.resume_parsing import resume_parser
 
 
 def test_parse_resume_file_includes_projects(monkeypatch):

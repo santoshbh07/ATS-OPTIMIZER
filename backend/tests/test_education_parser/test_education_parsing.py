@@ -1,7 +1,7 @@
 import pytest
 
-from app.services.parser.date_parser import NormalizedDate
-from app.services.parser.education_parser import parse_degree_entry, parse_education
+from app.services.resume_parsing.date_parser import NormalizedDate
+from app.services.resume_parsing.education_parser import parse_degree_entry, parse_education
 
 
 def test_parse_degree_entry_stores_detected_location():

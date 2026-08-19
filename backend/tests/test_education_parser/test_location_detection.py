@@ -1,6 +1,6 @@
 import pytest
 
-from app.services.parser.education_parser import (
+from app.services.resume_parsing.education_parser import (
     detect_institution,
     detect_location,
     split_institution_and_location,

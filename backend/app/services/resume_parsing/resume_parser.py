@@ -1,12 +1,12 @@
 from dataclasses import asdict
 from pathlib import Path
 
-from .parser.education_parser import parse_education
-from .parser.experience_parser import parse_experience
-from .parser.project_parser import parse_projects
-from .parser.skill_parser import parse_skills
-from .section_extractor import extract_sections
-from .text_extractor import extract_text
+from .education_parser import parse_education
+from .experience_parser import parse_experience
+from .project_parser import parse_projects
+from .skill_parser import parse_skills
+from ..resume_text_extractor.section_extractor import extract_sections
+from ..resume_text_extractor.text_extractor import extract_text
 
 
 def parse_resume_file(
