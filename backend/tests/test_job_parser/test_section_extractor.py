@@ -2,6 +2,8 @@ import pytest
 
 from app.services.job_parsing.section_extractor import (
     JOB_SECTION_ALIASES,
+    extract_sections,
+    find_header_loc,
     is_header,
     normalize_header,
     reverse_section_headers,
@@ -100,6 +102,10 @@ def test_header_with_supported_punctuation_is_recognized():
     assert is_header("Benefits:")
 
 
+def test_inline_header_with_content_is_recognized():
+    assert is_header("Requirements: Python")
+
+
 def test_unknown_header_is_rejected():
     assert not is_header("company values")
 
@@ -114,3 +120,58 @@ def test_partial_header_text_is_not_accepted():
 
 def test_similar_but_unsupported_header_wording_is_rejected():
     assert not is_header("what you should bring")
+
+
+def test_extract_sections_collects_content_until_the_next_header():
+    result = extract_sections(
+        """
+        Responsibilities
+        Build APIs
+        Test services
+        Requirements
+        Python
+        """
+    )
+
+    assert result == {
+        "responsibilities": ["Build APIs", "Test services"],
+        "requirements": ["Python"],
+    }
+
+
+def test_extract_sections_supports_inline_header_content():
+    result = extract_sections(
+        """
+        Location: Austin, TX
+        Requirements: Python and SQL
+        Responsibilities: Build APIs
+        """
+    )
+
+    assert result == {
+        "location": ["Austin, TX"],
+        "requirements": ["Python and SQL"],
+        "responsibilities": ["Build APIs"],
+    }
+
+
+def test_extract_sections_combines_repeated_sections():
+    result = extract_sections(
+        """
+        Requirements
+        Python
+        Minimum Qualifications
+        SQL
+        """
+    )
+
+    assert result["requirements"] == ["Python", "SQL"]
+
+
+def test_find_header_loc_reports_inline_and_standalone_headers():
+    headers, positions = find_header_loc(
+        "Requirements: Python\nResponsibilities\nBuild APIs"
+    )
+
+    assert headers == {"requirements": [0], "responsibilities": [1]}
+    assert positions == [0, 1]

@@ -1,13 +1,17 @@
-from pydantic import BaseModel
+"""Request and response schemas for a resume-to-job analysis."""
+
+from pydantic import BaseModel, Field
+
+from .job import JobDescription
+from .resume import Resume
 
 
 class AnalysisRequest(BaseModel):
-    resume_id: int
-    job_id: int
+    resume: Resume
+    job: JobDescription
 
 
 class AnalysisResponse(BaseModel):
-    resume_id: int
-    job_id: int
-    score: float
-    result: dict  # will tighten this once scorer.py output shape is clear
+    score: float = Field(ge=0, le=100)
+    # Matching will replace this generic mapping with its final result model.
+    result: dict[str, object]

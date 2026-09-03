@@ -211,18 +211,21 @@ JOB_SECTION_ALIASES = {
     },
 }
 
-def reverse_section_headers(headers):
-    reversed_headers = {}
-    for header in headers:
-        header_list = headers[header]
-        for item in header_list:
-            reversed_headers[item] = header
-    
-    return reversed_headers
-        
+def reverse_section_headers(
+    headers: dict[str, set[str]],
+) -> dict[str, str]:
+    """Return an alias-to-canonical-section lookup."""
+    return {
+        alias: section_name
+        for section_name, aliases in headers.items()
+        for alias in aliases
+    }
+
+
 reversed_section_headers = reverse_section_headers(JOB_SECTION_ALIASES)
 
-def normalize_header(line):
+
+def normalize_header(line: str) -> str:
     if not line:
         return ""
 
@@ -233,31 +236,56 @@ def normalize_header(line):
     normalized = re.sub(r"\s+", " ", normalized)
     return normalized
 
-def is_header(line):
-    return normalize_header(line) in reversed_section_headers
+def is_header(line: str) -> bool:
+    return _match_header_line(line) is not None
+
+
+def _match_header_line(line: str) -> tuple[str, str] | None:
+    """Match either a standalone header or ``Header: inline content``."""
+    section_name = reversed_section_headers.get(normalize_header(line))
+    if section_name is not None:
+        return section_name, ""
+
+    inline_match = re.fullmatch(
+        r"(?P<header>[^:|]{1,80})\s*[:|]\s*(?P<content>.+)",
+        line.strip(),
+    )
+    if inline_match is None:
+        return None
+
+    section_name = reversed_section_headers.get(
+        normalize_header(inline_match.group("header"))
+    )
+    if section_name is None:
+        return None
+
+    return section_name, inline_match.group("content").strip()
+
 
 def _clean_jd_lines(jd_text: str) -> list[str]:
+    if not isinstance(jd_text, str):
+        raise TypeError("jd_text must be a string")
     return [
         line.strip()
         for line in jd_text.splitlines()
         if line.strip()
     ]
-    
+
+
 def find_header_loc(
-    resume_text: str,
+    jd_text: str,
 ) -> tuple[dict[str, list[int]], list[int]]:
-    cleaned_lines = _clean_jd_lines(resume_text)
+    cleaned_lines = _clean_jd_lines(jd_text)
 
     headers_loc: dict[str, list[int]] = {}
     all_header_positions: list[int] = []
 
     for index, line in enumerate(cleaned_lines):
-        normalized_line = normalize_header(line)
-
-        if normalized_line not in reversed_section_headers:
+        header_match = _match_header_line(line)
+        if header_match is None:
             continue
 
-        section_name = reversed_section_headers[normalized_line]
+        section_name, _ = header_match
 
         headers_loc.setdefault(section_name, []).append(index)
         all_header_positions.append(index)
@@ -266,12 +294,12 @@ def find_header_loc(
 
 
 def extract_sections(
-    resume_text: str,
+    jd_text: str,
 ) -> dict[str, list[str]]:
-    cleaned_lines = _clean_jd_lines(resume_text)
+    cleaned_lines = _clean_jd_lines(jd_text)
 
     header_loc, all_header_positions = find_header_loc(
-        resume_text
+        jd_text
     )
 
     extracted_sections: dict[str, list[str]] = {}
@@ -280,6 +308,10 @@ def extract_sections(
         combined_lines: list[str] = []
 
         for start_index in start_indices:
+            header_match = _match_header_line(cleaned_lines[start_index])
+            if header_match is not None and header_match[1]:
+                combined_lines.append(header_match[1])
+
             next_boundary = next(
                 (
                     position
