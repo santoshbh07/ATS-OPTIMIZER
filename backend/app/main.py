@@ -5,6 +5,9 @@ import shutil
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
 
+from app.schemas.job import JobDescription, JobTextRequest
+from app.schemas.resume import Resume
+from app.services.job_parsing import parse_job_description
 from app.services.resume_parsing.resume_parser import parse_resume_file
 
 logger = logging.getLogger(__name__)
@@ -28,7 +31,7 @@ def health_check() -> dict[str, str]:
     }
 
 
-@app.post("/parse-resume")
+@app.post("/parse-resume", response_model=Resume)
 def parse_resume_endpoint(
     file: UploadFile = File(...),
 ) -> dict[str, list[dict[str, object]]]:
@@ -60,6 +63,23 @@ def parse_resume_endpoint(
 
         if temporary_path is not None:
             temporary_path.unlink(missing_ok=True)
+
+
+@app.post("/parse-job", response_model=JobDescription)
+def parse_job_endpoint(request: JobTextRequest) -> dict[str, object]:
+    try:
+        return parse_job_description(request.text)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=str(exc),
+        ) from exc
+    except Exception as exc:
+        logger.exception("Unexpected error while parsing job description")
+        raise HTTPException(
+            status_code=500,
+            detail="An unexpected error occurred while parsing the job description.",
+        ) from exc
 
 
 def _save_uploaded_file(file: UploadFile) -> Path:

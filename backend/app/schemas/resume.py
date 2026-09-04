@@ -57,8 +57,19 @@ class Project(BaseModel):
     raw_lines: list[str] = Field(default_factory=list)
 
 
+class Certification(BaseModel):
+    name: str
+    issuer: str | None = None
+    issue_date: NormalizedDate | None = None
+    expiration_date: NormalizedDate | None = None
+    credential_id: str | None = None
+    credential_url: str | None = None
+    raw_lines: list[str] = Field(default_factory=list)
+
+
 class Resume(BaseModel):
     education: list[Education] = Field(default_factory=list)
     skills: list[Skill] = Field(default_factory=list)
     projects: list[Project] = Field(default_factory=list)
     experience: list[Experience] = Field(default_factory=list)
+    certifications: list[Certification] = Field(default_factory=list)

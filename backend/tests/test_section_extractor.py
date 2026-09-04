@@ -95,3 +95,16 @@ def test_memberships_affiliations_heading_ends_experience_section():
     assert result["activities"] == [
         "Association for Computing Machinery",
     ]
+
+
+def test_certification_heading_routes_to_certifications_section():
+    resume_text = """
+    CERTIFICATION
+    AWS Certified Cloud Practitioner
+    """
+
+    result = extract_sections(resume_text)
+
+    assert result == {
+        "certifications": ["AWS Certified Cloud Practitioner"],
+    }

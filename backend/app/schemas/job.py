@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 RequirementCategory = Literal[
@@ -35,3 +35,14 @@ class JobDescription(BaseModel):
     requirements: list[JobRequirement] = Field(default_factory=list)
     responsibilities: list[str] = Field(default_factory=list)
     sections: dict[str, list[str]] = Field(default_factory=dict)
+
+
+class JobTextRequest(BaseModel):
+    text: str
+
+    @field_validator("text")
+    @classmethod
+    def text_must_not_be_blank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("text cannot be empty")
+        return value

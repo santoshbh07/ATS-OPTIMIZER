@@ -36,7 +36,7 @@ SKILL_CATEGORY_ALIASES: dict[str, str] = {
     "professional skills": "soft_skills",
     "professional": "soft_skills",
     "languages": "spoken_languages",
-    "software": "Software",
+    "software": "software",
 }
 
 SKILL_SECTION_HEADERS = frozenset(

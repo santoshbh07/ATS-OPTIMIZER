@@ -8,9 +8,11 @@ and ATS-style scoring are the next planned development phase.
 
 - PDF and DOCX resume uploads through FastAPI
 - Resume text extraction with temporary-file cleanup
-- Structured parsing for education, skills, projects, and experience
+- Structured parsing for education, skills, projects, experience, and
+  certifications
 - Structured job-description parsing for metadata, requirements, and
   responsibilities
+- Resume and job-description parsing endpoints
 - Pydantic models that validate parser output
 - Automated parser and schema tests
 
@@ -48,6 +50,14 @@ python -m uvicorn app.main:app --app-dir backend --reload
 The API is available at `http://127.0.0.1:8000`. Interactive documentation is
 available at `http://127.0.0.1:8000/docs`.
 
+Available parsing endpoints:
+
+- `POST /parse-resume` accepts a PDF or DOCX file.
+- `POST /parse-job` accepts JSON in the form `{"text": "..."}`.
+
+Resume files must contain selectable text. Scanned image-only documents require
+OCR before upload.
+
 ## Running Tests
 
 ```bash
@@ -79,7 +89,6 @@ ATS Optimizer/
 
 - Resume-to-job requirement matching
 - Explainable category and overall scores
-- Job-description API endpoint
 - Vanilla HTML, CSS, and JavaScript frontend
 - Database integration after the parsing and matching contracts stabilize
 

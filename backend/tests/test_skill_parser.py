@@ -34,6 +34,12 @@ def test_switches_category_when_new_category_is_found():
     assert [skill.category for skill in result.skills] == ["frameworks", "databases"]
 
 
+def test_software_category_uses_normalized_identifier():
+    result = parse_skills(["Software: Excel, Tableau"])
+
+    assert [skill.category for skill in result.skills] == ["software", "software"]
+
+
 def test_preserves_cpp_csharp_and_dotnet():
     assert names(parse_skills(["C++, C#, .NET"])) == ["C++", "C#", ".NET"]
 

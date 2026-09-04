@@ -46,6 +46,12 @@ def test_resume_schema_accepts_resume_parser_shape():
                     "descriptions": ["Built APIs"],
                 }
             ],
+            "certifications": [
+                {
+                    "name": "AWS Certified Cloud Practitioner",
+                    "issuer": "Amazon Web Services",
+                }
+            ],
         }
     )
 
@@ -53,6 +59,7 @@ def test_resume_schema_accepts_resume_parser_shape():
     assert resume.skills[0].name == "Python"
     assert resume.projects[0].technologies == ["Python"]
     assert resume.experience[0].position == "Software Engineer"
+    assert resume.certifications[0].issuer == "Amazon Web Services"
 
 
 def test_analysis_request_uses_parsed_objects_without_database_ids():
@@ -71,6 +78,48 @@ def test_analysis_request_uses_parsed_objects_without_database_ids():
 
     assert request.resume.skills[0].name == "Python"
     assert request.job.requirements[0].text == "Python"
+
+
+def test_analysis_response_uses_typed_matching_result():
+    response = AnalysisResponse(
+        score=75,
+        result={
+            "requirement_matches": [
+                {
+                    "requirement": {
+                        "text": "Python",
+                        "category": "skill",
+                    },
+                    "status": "matched",
+                    "score": 1,
+                    "evidence": [
+                        {
+                            "source": "skills",
+                            "source_index": 0,
+                            "text": "Python",
+                            "matched_terms": ["Python"],
+                        }
+                    ],
+                    "matched_terms": ["Python"],
+                }
+            ],
+            "category_scores": [
+                {
+                    "category": "skill",
+                    "score": 75,
+                    "earned_weight": 1.5,
+                    "available_weight": 2,
+                    "matched_count": 1,
+                }
+            ],
+            "matched_keywords": ["Python"],
+        },
+    )
+
+    match = response.result.requirement_matches[0]
+    assert match.status == "matched"
+    assert match.evidence[0].source == "skills"
+    assert response.result.category_scores[0].score == 75
 
 
 @pytest.mark.parametrize("score", [-0.1, 100.1])

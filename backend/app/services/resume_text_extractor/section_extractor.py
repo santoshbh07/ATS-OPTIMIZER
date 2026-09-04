@@ -23,7 +23,6 @@ section_headers = {
     "educational background",
     "qualifications",
     "academic history",
-    "certification",
     # Mixed headings
     "education and certifications",
     "education & certifications",
